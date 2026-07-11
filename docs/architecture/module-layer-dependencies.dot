@@ -1,0 +1,23 @@
+digraph ModuleLayerDependencies {
+  graph [rankdir="LR", compound="true", fontname="Helvetica", fontsize="10", nodesep="0.35", ranksep="0.55"];
+  node [shape="box", style="rounded,filled", fontname="Helvetica", fontsize="10", color="#374151", fontcolor="#111827"];
+  edge [arrowsize="0.7", color="#4b5563", fontname="Helvetica", fontsize="9"];
+
+  subgraph cluster_kernel {
+    label="kernel";
+    color="#d1d5db";
+    style="rounded";
+    "kernel/public" [label="public", fillcolor="#f3f4f6"];
+    "kernel/application" [label="application", fillcolor="#dbeafe"];
+    "kernel/domain" [label="domain", fillcolor="#dcfce7"];
+    "kernel/infrastructure" [label="infrastructure", fillcolor="#ffedd5"];
+    "kernel/transport" [label="transport", fillcolor="#ede9fe"];
+  }
+
+  "kernel/infrastructure" -> "kernel/domain" [style="solid"];
+  "kernel/public" -> "kernel/application" [style="dotted"];
+  "kernel/public" -> "kernel/domain" [style="dotted"];
+  "kernel/public" -> "kernel/infrastructure" [style="dotted"];
+  "kernel/public" -> "kernel/transport" [style="dashed"];
+  "kernel/transport" -> "kernel/domain" [style="solid"];
+}
