@@ -1,0 +1,35 @@
+{
+  "home": {
+    "title": "start-ui-web",
+    "subtitle": "Kiolezo cha msingi cha TanStack Start chenye usanifu wa kawaida wa hexagonal."
+  },
+  "languages": {
+    "values": {
+      "en": "Kiingereza",
+      "fr": "Kifaransa",
+      "ar": "Kiarabu",
+      "sw": "Kiswahili"
+    },
+    "label": "Lugha"
+  },
+  "themes": {
+    "values": {
+      "light": "Mwanga",
+      "dark": "Giza",
+      "system": "Mfumo (Otomatiki)"
+    },
+    "label": "Mada"
+  },
+  "actions": {
+    "back": "Rudi",
+    "cancel": "Ghairi",
+    "close": "Funga",
+    "delete": "Futa",
+    "edit": "Hariri",
+    "update": "Sasisha"
+  },
+  "errors": {
+    "required": "Inahitajika",
+    "maxLength": "Ndefu mno"
+  }
+}

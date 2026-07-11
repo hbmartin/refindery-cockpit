@@ -1,0 +1,35 @@
+{
+  "home": {
+    "title": "start-ui-web",
+    "subtitle": "A minimal TanStack Start boilerplate with a modular, hexagonal architecture."
+  },
+  "languages": {
+    "label": "Language",
+    "values": {
+      "en": "English",
+      "fr": "French",
+      "ar": "Arabic",
+      "sw": "Swahili"
+    }
+  },
+  "themes": {
+    "label": "Theme",
+    "values": {
+      "system": "System (auto)",
+      "light": "Light",
+      "dark": "Dark"
+    }
+  },
+  "actions": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "update": "Update"
+  },
+  "errors": {
+    "required": "Required",
+    "maxLength": "Too long"
+  }
+}
