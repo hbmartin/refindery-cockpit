@@ -9,6 +9,10 @@ import { QueryClientProvider } from '@/platform/lib/tanstack-query/provider';
 
 import { Sonner } from '@/platform/components/ui/sonner';
 
+import { refineryApi } from '@/modules/refindery/infrastructure/api';
+import { searchHistoryStore } from '@/modules/refindery/infrastructure/search-history-store';
+import { tokenStore } from '@/modules/refindery/infrastructure/token-store';
+import { RefinderyClientProvider } from '@/modules/refindery/presentation';
 import { readCspNonceFromMeta } from '@/platform/http/csp-nonce';
 
 export const Providers = (props: {
@@ -28,7 +32,13 @@ export const Providers = (props: {
       forcedTheme={props.forcedTheme}
     >
       <QueryClientProvider client={props.client}>
-        <ProviderContent>{props.children}</ProviderContent>
+        <RefinderyClientProvider
+          api={refineryApi}
+          tokenStore={tokenStore}
+          searchHistory={searchHistoryStore}
+        >
+          <ProviderContent>{props.children}</ProviderContent>
+        </RefinderyClientProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

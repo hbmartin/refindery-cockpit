@@ -1,0 +1,6082 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Refindery",
+    "description": "A local retrieval engine over the web pages you read. Returns ranked, grounded passages with provenance; synthesis is the caller's job.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/pages": {
+      "post": {
+        "tags": ["pages"],
+        "summary": "Ingest a page",
+        "description": "Add a page the user read to the index. body_extracted and body_html are mutually exclusive; when neither is given the URL is fetched asynchronously. Known canonical URLs record a revisit instead.",
+        "operationId": "add_page",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestPageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestRevisitResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestAcceptedResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlacklistedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/pages/batch": {
+      "post": {
+        "tags": ["pages"],
+        "summary": "Ingest up to 100 pages",
+        "description": "Validate and ingest each page independently. Results preserve input order; malformed or blacklisted items do not prevent other items.",
+        "operationId": "add_pages_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/pages/status/batch": {
+      "post": {
+        "tags": ["pages"],
+        "summary": "Fetch status for up to 500 pages",
+        "description": "Return one status per distinct requested page id. Unknown ids are reported with found=false instead of failing the batch.",
+        "operationId": "page_status_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageStatusBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageStatusBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/pages/{page_id}": {
+      "get": {
+        "tags": ["pages"],
+        "summary": "Fetch a page",
+        "description": "Return the full stored body text and metadata of one page from the user's reading history.",
+        "operationId": "get_page",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/pages/{page_id}/chunks": {
+      "get": {
+        "tags": ["pages"],
+        "summary": "List a page's indexed chunks",
+        "description": "Return chunk text and body offsets in ordinal order.",
+        "operationId": "get_page_chunks",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageChunksResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/pages/{page_id}/status": {
+      "get": {
+        "tags": ["pages"],
+        "summary": "Page indexing status",
+        "description": "Return the indexing lifecycle status of a page.",
+        "operationId": "page_status",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/jobs": {
+      "get": {
+        "tags": ["jobs"],
+        "summary": "List jobs",
+        "description": "List jobs newest first, optionally filtered by status and kind.\n\n``status_filter`` is a deprecated compatibility alias for ``status``; a\nrequest that supplies both is rejected.",
+        "operationId": "list_jobs",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "deprecated": true,
+              "title": "Status Filter"
+            },
+            "deprecated": true
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/jobs/retry": {
+      "post": {
+        "tags": ["jobs"],
+        "summary": "Retry dead jobs in bulk",
+        "description": "Retry dead jobs either by explicit `job_ids` (up to 500, deduped, results in input order) or by selector (all dead jobs, optionally filtered by `kind`, up to `limit`). Non-dead jobs are reported as skipped and unknown ids as not_found; the call is idempotent — a second selector call finds nothing left to retry. Always returns 200.",
+        "operationId": "retry_jobs_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRetryBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRetryBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/jobs/{job_id}/retry": {
+      "post": {
+        "tags": ["jobs"],
+        "summary": "Retry a dead job",
+        "description": "Reset a dead job to pending and re-enqueue it; other states return 409.",
+        "operationId": "retry_job",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/search": {
+      "post": {
+        "tags": ["search"],
+        "summary": "Search the reading history",
+        "description": "Hybrid semantic + keyword search over pages the user has read. Returns grounded passages from the user's own reading history. Contains no information the user has not read. Returns an empty result when nothing matches.",
+        "operationId": "search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/search/batch": {
+      "post": {
+        "tags": ["search"],
+        "summary": "Search many queries in one call",
+        "description": "Run up to 20 queries sequentially with shared parameters (sequential on purpose: it respects embedding provider rate limits, like model comparison does). Each item gets its own query_id and query-log row, so feedback and evaluation join per query. Per-item failures are reported inline as outcome='error' items; the call itself stays 200.",
+        "operationId": "search_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/pages/{page_id}/similar": {
+      "get": {
+        "tags": ["search"],
+        "summary": "Pages similar to a page",
+        "description": "Rank other pages from the user's reading history by similarity to this one. Returns grounded results from the user's own reading history only.",
+        "operationId": "similar_to",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          },
+          {
+            "name": "mediation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Mediation",
+              "default": "vector"
+            }
+          },
+          {
+            "name": "k",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "K"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilarResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/feedback": {
+      "post": {
+        "tags": ["search"],
+        "summary": "Record relevance feedback",
+        "description": "Append feedback; unknown query_ids are accepted (eval join drops them).",
+        "operationId": "record_feedback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Record Feedback"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/forget": {
+      "post": {
+        "tags": ["forget"],
+        "summary": "Purge and blacklist a URL or domain",
+        "description": "Permanently remove matching pages from the index and blacklist the pattern so future ingests are rejected. This deletes user data; removal of the blacklist rule later does not restore content.",
+        "operationId": "forget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForgetResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/blacklist": {
+      "get": {
+        "tags": ["forget"],
+        "summary": "List blacklist rules",
+        "description": "All rules, newest first.",
+        "operationId": "list_blacklist",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlacklistResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/blacklist/{blacklist_id}": {
+      "delete": {
+        "tags": ["forget"],
+        "summary": "Remove a blacklist rule",
+        "description": "Future ingests are allowed again; purged content stays purged.",
+        "operationId": "unblacklist",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "blacklist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blacklist Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/clusters": {
+      "get": {
+        "tags": ["clusters"],
+        "summary": "List reading-topic clusters",
+        "description": "Topic clusters discovered over the user's reading history. Returns grounded results derived only from pages the user has read.",
+        "operationId": "list_clusters",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_tombstoned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Tombstoned"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/clusters/runs": {
+      "get": {
+        "tags": ["clusters"],
+        "summary": "List clustering runs",
+        "description": "Return persisted clustering history newest first.",
+        "operationId": "list_cluster_runs",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterRunsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/clusters/projection": {
+      "get": {
+        "tags": ["clusters"],
+        "summary": "Read a run's two-dimensional page projection",
+        "description": "Return page coordinates for a persisted clustering run.",
+        "operationId": "cluster_projection",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterProjectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/clusters/{cluster_id}": {
+      "get": {
+        "tags": ["clusters"],
+        "summary": "A cluster's label, keywords, and member pages",
+        "description": "Member pages of one topic cluster from the user's reading history. Tombstoned clusters remain resolvable by id.",
+        "operationId": "cluster_pages",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cluster_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cluster Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/clusters/recompute": {
+      "post": {
+        "tags": ["clusters"],
+        "summary": "Trigger a cluster run",
+        "description": "Enqueue a manual run; 409 when one is already in flight.",
+        "operationId": "recompute_clusters",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecomputeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/entities/{ref}": {
+      "get": {
+        "tags": ["entities"],
+        "summary": "Look up an entity",
+        "description": "Resolve an entity by id, canonical form, or alias (references survive merges). Returns aliases and the user's pages mentioning it — grounded in the reading history only.",
+        "operationId": "entities",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/pages/{page_id}/entities": {
+      "get": {
+        "tags": ["entities"],
+        "summary": "Entities mentioned on a page",
+        "description": "Entities linked to one page.",
+        "operationId": "page_entities",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageEntitiesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/entities/merges/{merge_id}/undo": {
+      "post": {
+        "tags": ["entities"],
+        "summary": "Undo an entity merge (LIFO only)",
+        "description": "Restore a merged entity from its snapshot.",
+        "operationId": "undo_entity_merge",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "merge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Merge Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoMergeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/models/{model_id}/backfill": {
+      "get": {
+        "tags": ["models"],
+        "summary": "Read model backfill progress",
+        "description": "Return durable progress for a model's corpus backfill.",
+        "operationId": "get_model_backfill",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelBackfillResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      },
+      "post": {
+        "tags": ["models"],
+        "summary": "Estimate or start a backfill",
+        "description": "confirm=false returns an exact dry-run estimate (chunk token counts are stored); confirm=true starts the durable, resumable backfill.",
+        "operationId": "backfill_model",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackfillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/BackfillEstimateResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BackfillStartedResponse"
+                    }
+                  ],
+                  "title": "Response Backfill Model",
+                  "$ref": "#/components/schemas/BackfillEstimateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "tags": ["models"],
+        "summary": "List embedding models",
+        "description": "All registered models.",
+        "operationId": "list_models_api",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      },
+      "post": {
+        "tags": ["models"],
+        "summary": "Register an embedding model",
+        "description": "Register (not active, no vectors yet). Rejected below the chunk budget.",
+        "operationId": "register_model",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/models/{model_id}/activate": {
+      "post": {
+        "tags": ["models"],
+        "summary": "Make this the active search model",
+        "description": "Atomic flip; only ready models can be activated.",
+        "operationId": "activate_model",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/models/{model_id}": {
+      "delete": {
+        "tags": ["models"],
+        "summary": "Retire a model and drop its vector space",
+        "description": "409 when active; drops the vector space and page vectors.",
+        "operationId": "retire_model",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/compare": {
+      "post": {
+        "tags": ["compare"],
+        "summary": "Compare embedding models on one query",
+        "description": "Runs the full retrieval pipeline once per model; the sparse arm and reranker are identical across arms, so the delta isolates the embedder. Returns per-model rankings over the user's reading history plus agreement statistics (Jaccard@k, RBO, Kendall's tau).",
+        "operationId": "compare",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/watches": {
+      "get": {
+        "tags": ["watches"],
+        "summary": "List watches",
+        "description": "All watches with their schedules and last-poll health (status, error, item count).",
+        "operationId": "list_watches",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      },
+      "post": {
+        "tags": ["watches"],
+        "summary": "Create a watch",
+        "description": "Register a URL to poll on a schedule (default every 24 hours). Each poll discovers the source's current item URLs and ingests the new ones, so they become searchable. Kind 'rss' polls an RSS/Atom feed; kind 'youtube' polls a YouTube playlist or channel and ingests each video's transcript (single videos go to add_page instead). Already-indexed and blacklisted items are skipped automatically. The first poll runs within a minute of creation.",
+        "operationId": "create_watch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/watches/{watch_id}": {
+      "get": {
+        "tags": ["watches"],
+        "summary": "Get a watch",
+        "description": "One watch with its schedule and last-poll health.",
+        "operationId": "get_watch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Watch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      },
+      "patch": {
+        "tags": ["watches"],
+        "summary": "Update a watch",
+        "description": "Partially update a watch: pause/resume with 'enabled', change the poll interval, title, or per-kind config. Omitted fields are left unchanged; the URL is immutable (delete and recreate instead). Changing the interval reschedules the next poll from the last run.",
+        "operationId": "update_watch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Watch Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      },
+      "delete": {
+        "tags": ["watches"],
+        "summary": "Delete a watch",
+        "description": "Stop polling this source. Pages already ingested by the watch stay indexed; use forget to remove content.",
+        "operationId": "delete_watch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Watch Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/watches/{watch_id}/run": {
+      "post": {
+        "tags": ["watches"],
+        "summary": "Poll a watch now",
+        "description": "Enqueue an immediate poll instead of waiting for the schedule; the next scheduled poll moves to one interval from now. Returns the poll job id; track it via the jobs API.",
+        "operationId": "run_watch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Watch Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchRunAcceptedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/admin/metrics/timeseries": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Read metric history",
+        "description": "Read historical rollups plus current gauge values for one metric.",
+        "operationId": "admin_metrics_timeseries",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Metric"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "step",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 60,
+              "title": "Step"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsTimeseriesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/admin/metrics/summary": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Typed operational canaries",
+        "description": "One JSON snapshot of operational health: job-ledger counts, vector tombstone backlog, dropped observability rows, provider error counters, search latency quantiles, and circuit breaker states. Counter-derived fields are process-lifetime totals that reset on restart; `since` bounds the latency window only.",
+        "operationId": "admin_metrics_summary",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/admin/query-log": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "List query-log runs",
+        "description": "List retrieval traces newest first, optionally filtered by time and kind.\n\nEach trace includes candidate, dense, sparse, and final hit sets, per-stage\ntiming, and the latest relevance feedback. The default limit is 100 and the\nmaximum is 1,000.",
+        "operationId": "admin_query_log",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": ["search", "compare_arm"],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryLogListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/admin/query-log/{query_id}": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Read one query-log run",
+        "description": "Return one full retrieval trace with rankings, timing, and feedback.",
+        "operationId": "admin_query_log_detail",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "query_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Query Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryLogRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/admin/eval/score": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "Score logged runs",
+        "description": "Score logged rankings synchronously without calling external providers.",
+        "operationId": "admin_eval_score",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/admin/eval/replay": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "Enqueue a live eval replay",
+        "description": "Enqueue a durable two-arm replay that may call paid model providers.\n\nThe response is a 202 with a job ID and result URL. Polling the result needs\nonly read scope; the report or failure survives process restarts.",
+        "operationId": "admin_eval_replay",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalReplayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalReplayAcceptedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "write"
+      }
+    },
+    "/v1/admin/eval/replay/{job_id}": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Poll a live eval replay",
+        "description": "Read durable replay status, its completed report, or terminal failure.",
+        "operationId": "admin_eval_replay_result",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalReplayResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/admin/config": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Read effective configuration",
+        "description": "Return effective settings with secrets redacted recursively.\n\nEvery setting is marked ``boot_only`` because runtime mutation is not\nsupported.",
+        "operationId": "admin_config",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminConfigResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/admin/mcp": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Inspect mounted MCP tools",
+        "description": "Return actual mounted tool metadata and mutating-tool visibility.",
+        "operationId": "admin_mcp",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpAdminResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/v1/whoami": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Identify caller",
+        "description": "Return the authenticated token name and its effective scopes.",
+        "operationId": "whoami",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhoAmIResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Read Prometheus metrics",
+        "description": "Return the Prometheus text exposition for authenticated scrapers.",
+        "operationId": "metrics",
+        "responses": {
+          "200": {
+            "description": "Prometheus text exposition.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-required-scope": "read"
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Check process liveness",
+        "description": "Return success when the API process is running. No authentication.",
+        "operationId": "healthz",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Healthz"
+                }
+              }
+            }
+          }
+        },
+        "x-required-scope": "public"
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Check service readiness",
+        "description": "Check that the metadata store is reachable and an embedding model is active. Returns 503 until both conditions hold. No authentication.",
+        "operationId": "readyz",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Readyz"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required dependency is unavailable."
+          }
+        },
+        "x-required-scope": "public"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminConfigResponse": {
+        "properties": {
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "mutability": {
+            "additionalProperties": {
+              "type": "string",
+              "const": "boot_only"
+            },
+            "type": "object",
+            "title": "Mutability"
+          }
+        },
+        "type": "object",
+        "required": ["settings", "mutability"],
+        "title": "AdminConfigResponse"
+      },
+      "BackfillEstimateResponse": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "n_chunks": {
+            "type": "integer",
+            "title": "N Chunks"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          },
+          "est_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Cost Usd"
+          },
+          "est_duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Duration S"
+          },
+          "confirm_required": {
+            "type": "boolean",
+            "const": true,
+            "title": "Confirm Required",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "n_chunks",
+          "total_tokens",
+          "est_cost_usd",
+          "est_duration_s"
+        ],
+        "title": "BackfillEstimateResponse",
+        "description": "Dry-run estimate (confirm=false)."
+      },
+      "BackfillRequest": {
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BackfillRequest",
+        "description": "POST /v1/models/{id}/backfill body."
+      },
+      "BackfillStartedResponse": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "backfilling",
+            "title": "Status",
+            "default": "backfilling"
+          }
+        },
+        "type": "object",
+        "required": ["model_id"],
+        "title": "BackfillStartedResponse",
+        "description": "202-style acknowledgement (confirm=true)."
+      },
+      "BlacklistEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "pattern": {
+            "type": "string",
+            "title": "Pattern"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/BlacklistKind"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": ["id", "pattern", "kind", "reason", "created_at"],
+        "title": "BlacklistEntry",
+        "description": "One blacklist rule."
+      },
+      "BlacklistKind": {
+        "type": "string",
+        "enum": ["url", "domain"],
+        "title": "BlacklistKind",
+        "description": "Whether a blacklist rule matches a URL exactly or a domain suffix."
+      },
+      "BlacklistResponse": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/BlacklistEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": ["entries"],
+        "title": "BlacklistResponse",
+        "description": "GET /v1/blacklist response."
+      },
+      "BlacklistedResponse": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "blacklisted",
+            "title": "Error",
+            "default": "blacklisted"
+          },
+          "pattern": {
+            "type": "string",
+            "title": "Pattern"
+          }
+        },
+        "type": "object",
+        "required": ["pattern"],
+        "title": "BlacklistedResponse",
+        "description": "403: URL matches a blacklist rule."
+      },
+      "BreakerStateSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["closed", "half_open", "open"],
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": ["name", "state"],
+        "title": "BreakerStateSummary"
+      },
+      "ChunkResult": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "title": "Chunk Id"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": ["chunk_id", "ordinal", "text", "score"],
+        "title": "ChunkResult",
+        "description": "One matched chunk, whole text."
+      },
+      "ClusterDetailResponse": {
+        "properties": {
+          "cluster": {
+            "$ref": "#/components/schemas/ClusterSummary"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/ClusterMemberPage"
+            },
+            "type": "array",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": ["cluster", "pages"],
+        "title": "ClusterDetailResponse",
+        "description": "GET /v1/clusters/{id} response."
+      },
+      "ClusterListResponse": {
+        "properties": {
+          "clusters": {
+            "items": {
+              "$ref": "#/components/schemas/ClusterSummary"
+            },
+            "type": "array",
+            "title": "Clusters"
+          }
+        },
+        "type": "object",
+        "required": ["clusters"],
+        "title": "ClusterListResponse",
+        "description": "GET /v1/clusters response."
+      },
+      "ClusterMemberPage": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "canonical_url": {
+            "type": "string",
+            "title": "Canonical Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "probability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "canonical_url", "title", "probability"],
+        "title": "ClusterMemberPage",
+        "description": "A page inside a cluster."
+      },
+      "ClusterProjectionPointResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "x", "y", "cluster_id"],
+        "title": "ClusterProjectionPointResponse",
+        "description": "A page point in a clustering run's display projection."
+      },
+      "ClusterProjectionResponse": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ClusterProjectionPointResponse"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": ["run_id", "points"],
+        "title": "ClusterProjectionResponse",
+        "description": "GET /v1/clusters/projection."
+      },
+      "ClusterRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": ["id", "label"],
+        "title": "ClusterRef",
+        "description": "Cluster membership shown on a result (populated from M4)."
+      },
+      "ClusterRunResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          },
+          "algorithm": {
+            "type": "string",
+            "title": "Algorithm"
+          },
+          "params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Params"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "n_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Pages"
+          },
+          "n_clusters": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Clusters"
+          },
+          "n_noise": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Noise"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trigger",
+          "algorithm",
+          "params",
+          "started_at",
+          "finished_at",
+          "duration_ms",
+          "n_pages",
+          "n_clusters",
+          "n_noise"
+        ],
+        "title": "ClusterRunResponse",
+        "description": "One persisted clustering run."
+      },
+      "ClusterRunsResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/ClusterRunResponse"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": ["runs"],
+        "title": "ClusterRunsResponse",
+        "description": "GET /v1/clusters/runs."
+      },
+      "ClusterSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "tombstoned": {
+            "type": "boolean",
+            "title": "Tombstoned",
+            "default": false
+          },
+          "projection_x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projection X"
+          },
+          "projection_y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projection Y"
+          }
+        },
+        "type": "object",
+        "required": ["id", "label", "keywords", "size"],
+        "title": "ClusterSummary",
+        "description": "One cluster."
+      },
+      "CompareAgreement": {
+        "properties": {
+          "model_a": {
+            "type": "string",
+            "title": "Model A"
+          },
+          "model_b": {
+            "type": "string",
+            "title": "Model B"
+          },
+          "jaccard_at_k": {
+            "type": "number",
+            "title": "Jaccard At K"
+          },
+          "rbo": {
+            "type": "number",
+            "title": "Rbo"
+          },
+          "kendall_tau": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kendall Tau"
+          },
+          "intersection_size": {
+            "type": "integer",
+            "title": "Intersection Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_a",
+          "model_b",
+          "jaccard_at_k",
+          "rbo",
+          "kendall_tau",
+          "intersection_size"
+        ],
+        "title": "CompareAgreement",
+        "description": "Agreement stats for one model pair."
+      },
+      "CompareModelRun": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ComparedPage"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": ["model", "results"],
+        "title": "CompareModelRun",
+        "description": "One model's ranking."
+      },
+      "CompareRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "minItems": 2,
+            "title": "Models"
+          },
+          "k": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "title": "K",
+            "default": 10
+          },
+          "candidates": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "Candidates",
+            "default": 100
+          },
+          "rerank": {
+            "type": "boolean",
+            "title": "Rerank",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["query", "models"],
+        "title": "CompareRequest",
+        "description": "POST /v1/compare body."
+      },
+      "CompareResponse": {
+        "properties": {
+          "compare_id": {
+            "type": "string",
+            "title": "Compare Id"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/CompareModelRun"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "agreement": {
+            "items": {
+              "$ref": "#/components/schemas/CompareAgreement"
+            },
+            "type": "array",
+            "title": "Agreement"
+          }
+        },
+        "type": "object",
+        "required": ["compare_id", "query", "runs", "agreement"],
+        "title": "CompareResponse",
+        "description": "POST /v1/compare response."
+      },
+      "ComparedPage": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "canonical_url": {
+            "type": "string",
+            "title": "Canonical Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "canonical_url", "title", "score"],
+        "title": "ComparedPage",
+        "description": "One ranked page in a compare arm."
+      },
+      "CreateWatchRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WatchKind",
+            "default": "rss"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Hours"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["url"],
+        "title": "CreateWatchRequest",
+        "description": "POST /v1/watches body."
+      },
+      "EntityDetailResponse": {
+        "properties": {
+          "entity": {
+            "$ref": "#/components/schemas/EntitySummary"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "page_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Page Ids"
+          }
+        },
+        "type": "object",
+        "required": ["entity", "aliases", "page_ids"],
+        "title": "EntityDetailResponse",
+        "description": "GET /v1/entities/{ref} response."
+      },
+      "EntitySummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "canonical_form": {
+            "type": "string",
+            "title": "Canonical Form"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "mention_count": {
+            "type": "integer",
+            "title": "Mention Count"
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count"
+          },
+          "idf": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idf"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "canonical_form",
+          "type",
+          "mention_count",
+          "page_count",
+          "idf"
+        ],
+        "title": "EntitySummary",
+        "description": "One canonical entity."
+      },
+      "EvalReplayAcceptedResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "result_url": {
+            "type": "string",
+            "title": "Result Url"
+          }
+        },
+        "type": "object",
+        "required": ["job_id", "result_url"],
+        "title": "EvalReplayAcceptedResponse"
+      },
+      "EvalReplayRequest": {
+        "properties": {
+          "model_a": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model A"
+          },
+          "model_b": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model B"
+          },
+          "rerank_a": {
+            "type": "boolean",
+            "title": "Rerank A",
+            "default": true
+          },
+          "rerank_b": {
+            "type": "boolean",
+            "title": "Rerank B",
+            "default": true
+          },
+          "k": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "K",
+            "default": 10
+          },
+          "candidates": {
+            "type": "integer",
+            "maximum": 10000,
+            "minimum": 1,
+            "title": "Candidates",
+            "default": 100
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000,
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "title": "EvalReplayRequest"
+      },
+      "EvalReplayResultResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": ["job_id", "status"],
+        "title": "EvalReplayResultResponse"
+      },
+      "EvalScoreRequest": {
+        "properties": {
+          "k": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "K",
+            "default": 10
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "title": "EvalScoreRequest"
+      },
+      "FeatureStatus": {
+        "properties": {
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobStatus"
+              },
+              {
+                "type": "string",
+                "const": "not_queued"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "type": "object",
+        "title": "FeatureStatus",
+        "description": "Status of an asynchronous enrichment feature for a page."
+      },
+      "FeedbackRequest": {
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "title": "Query Id"
+          },
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "relevant": {
+            "type": "boolean",
+            "title": "Relevant"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["query_id", "page_id", "relevant"],
+        "title": "FeedbackRequest",
+        "description": "POST /v1/feedback body."
+      },
+      "ForgetRequest": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ForgetRequest",
+        "description": "POST /v1/forget body: exactly one of url/domain."
+      },
+      "ForgetResponse": {
+        "properties": {
+          "blacklist_id": {
+            "type": "string",
+            "title": "Blacklist Id"
+          },
+          "pattern": {
+            "type": "string",
+            "title": "Pattern"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/BlacklistKind"
+          },
+          "pages_purged": {
+            "type": "integer",
+            "title": "Pages Purged"
+          },
+          "vector_deletes_queued": {
+            "type": "integer",
+            "title": "Vector Deletes Queued"
+          }
+        },
+        "type": "object",
+        "required": [
+          "blacklist_id",
+          "pattern",
+          "kind",
+          "pages_purged",
+          "vector_deletes_queued"
+        ],
+        "title": "ForgetResponse",
+        "description": "POST /v1/forget response."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IngestAcceptedResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "queued",
+            "title": "Status",
+            "default": "queued"
+          }
+        },
+        "type": "object",
+        "required": ["page_id"],
+        "title": "IngestAcceptedResponse",
+        "description": "202: new page queued."
+      },
+      "IngestBatchAcceptedResult": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "queued",
+            "title": "Status",
+            "default": "queued"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "accepted",
+            "title": "Outcome",
+            "default": "accepted"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "index"],
+        "title": "IngestBatchAcceptedResult",
+        "description": "A newly queued item in an ingest batch."
+      },
+      "IngestBatchBlacklistedResult": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "blacklisted",
+            "title": "Error",
+            "default": "blacklisted"
+          },
+          "pattern": {
+            "type": "string",
+            "title": "Pattern"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "blacklisted",
+            "title": "Outcome",
+            "default": "blacklisted"
+          }
+        },
+        "type": "object",
+        "required": ["pattern", "index"],
+        "title": "IngestBatchBlacklistedResult",
+        "description": "A blacklisted item in an ingest batch."
+      },
+      "IngestBatchRejectedResult": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "rejected",
+            "title": "Outcome",
+            "default": "rejected"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": ["index", "detail"],
+        "title": "IngestBatchRejectedResult",
+        "description": "An independently invalid item in an ingest batch."
+      },
+      "IngestBatchRequest": {
+        "properties": {
+          "pages": {
+            "items": {},
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Pages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["pages"],
+        "title": "IngestBatchRequest",
+        "description": "POST /v1/pages/batch envelope.\n\nItems remain unvalidated here so one malformed page does not reject the\notherwise valid envelope. The route validates each item independently."
+      },
+      "IngestBatchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/IngestBatchAcceptedResult"
+                },
+                {
+                  "$ref": "#/components/schemas/IngestBatchRevisitResult"
+                },
+                {
+                  "$ref": "#/components/schemas/IngestBatchBlacklistedResult"
+                },
+                {
+                  "$ref": "#/components/schemas/IngestBatchRejectedResult"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "outcome",
+                "mapping": {
+                  "accepted": "#/components/schemas/IngestBatchAcceptedResult",
+                  "blacklisted": "#/components/schemas/IngestBatchBlacklistedResult",
+                  "rejected": "#/components/schemas/IngestBatchRejectedResult",
+                  "revisit": "#/components/schemas/IngestBatchRevisitResult"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": ["results"],
+        "title": "IngestBatchResponse",
+        "description": "POST /v1/pages/batch response in input order."
+      },
+      "IngestBatchRevisitResult": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PageStatus"
+          },
+          "revisit": {
+            "type": "boolean",
+            "const": true,
+            "title": "Revisit",
+            "default": true
+          },
+          "content_hash_differs": {
+            "type": "boolean",
+            "title": "Content Hash Differs",
+            "default": false
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "revisit",
+            "title": "Outcome",
+            "default": "revisit"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "status", "index"],
+        "title": "IngestBatchRevisitResult",
+        "description": "A revisit item in an ingest batch."
+      },
+      "IngestPageRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body_extracted": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Extracted"
+          },
+          "body_html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Html"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["url"],
+        "title": "IngestPageRequest",
+        "description": "POST /v1/pages body."
+      },
+      "IngestRevisitResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PageStatus"
+          },
+          "revisit": {
+            "type": "boolean",
+            "const": true,
+            "title": "Revisit",
+            "default": true
+          },
+          "content_hash_differs": {
+            "type": "boolean",
+            "title": "Content Hash Differs",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "status"],
+        "title": "IngestRevisitResponse",
+        "description": "200: canonical URL already known."
+      },
+      "JobKind": {
+        "type": "string",
+        "enum": [
+          "index_page",
+          "fetch_and_index",
+          "extract_entities",
+          "backfill_model",
+          "cluster",
+          "label_clusters",
+          "canonicalize_entities",
+          "purge_vectors",
+          "eval_replay",
+          "poll_watch"
+        ],
+        "title": "JobKind",
+        "description": "Kinds of durable jobs the queue executes."
+      },
+      "JobListResponse": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobResponse"
+            },
+            "type": "array",
+            "title": "Jobs"
+          }
+        },
+        "type": "object",
+        "required": ["jobs"],
+        "title": "JobListResponse",
+        "description": "GET /v1/jobs."
+      },
+      "JobResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "status",
+          "attempts",
+          "max_attempts",
+          "last_error",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobResponse",
+        "description": "Job ledger row (admin surface)."
+      },
+      "JobRetryBatchMissingResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "not_found",
+            "title": "Outcome",
+            "default": "not_found"
+          }
+        },
+        "type": "object",
+        "required": ["job_id"],
+        "title": "JobRetryBatchMissingResult",
+        "description": "An unknown job id."
+      },
+      "JobRetryBatchRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "dead",
+            "title": "Status",
+            "default": "dead"
+          },
+          "job_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 500,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Ids"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 500,
+            "minimum": 1,
+            "title": "Limit",
+            "default": 100
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobRetryBatchRequest",
+        "description": "POST /v1/jobs/retry body: explicit ids or a dead-job selector."
+      },
+      "JobRetryBatchResponse": {
+        "properties": {
+          "requested": {
+            "type": "integer",
+            "title": "Requested"
+          },
+          "retried": {
+            "type": "integer",
+            "title": "Retried"
+          },
+          "results": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/JobRetryBatchRetriedResult"
+                },
+                {
+                  "$ref": "#/components/schemas/JobRetryBatchSkippedResult"
+                },
+                {
+                  "$ref": "#/components/schemas/JobRetryBatchMissingResult"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "outcome",
+                "mapping": {
+                  "not_found": "#/components/schemas/JobRetryBatchMissingResult",
+                  "retried": "#/components/schemas/JobRetryBatchRetriedResult",
+                  "skipped": "#/components/schemas/JobRetryBatchSkippedResult"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": ["requested", "retried", "results"],
+        "title": "JobRetryBatchResponse",
+        "description": "POST /v1/jobs/retry response in input/selection order."
+      },
+      "JobRetryBatchRetriedResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "retried",
+            "title": "Outcome",
+            "default": "retried"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "status",
+          "attempts",
+          "max_attempts",
+          "last_error",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobRetryBatchRetriedResult",
+        "description": "A job that was reset to pending and re-enqueued."
+      },
+      "JobRetryBatchSkippedResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "skipped",
+            "title": "Outcome",
+            "default": "skipped"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": ["job_id", "status", "detail"],
+        "title": "JobRetryBatchSkippedResult",
+        "description": "A job skipped because it is not dead."
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": ["pending", "running", "done", "failed", "dead"],
+        "title": "JobStatus",
+        "description": "Ledger status of a durable job."
+      },
+      "JobsSummary": {
+        "properties": {
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/JobStatus"
+            },
+            "type": "object",
+            "title": "By Status"
+          },
+          "queue_depth": {
+            "type": "integer",
+            "title": "Queue Depth"
+          },
+          "dead": {
+            "type": "integer",
+            "title": "Dead"
+          },
+          "failures_by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Failures By Kind"
+          }
+        },
+        "type": "object",
+        "required": ["by_status", "queue_depth", "dead", "failures_by_kind"],
+        "title": "JobsSummary"
+      },
+      "JsonValue": {},
+      "LoggedHitResponse": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "title": "Chunk Id"
+          },
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": ["chunk_id", "page_id", "score"],
+        "title": "LoggedHitResponse"
+      },
+      "LoggedPageResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "score", "rank"],
+        "title": "LoggedPageResponse"
+      },
+      "McpAdminResponse": {
+        "properties": {
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/McpToolResponse"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "enable_mutating_tools": {
+            "type": "boolean",
+            "title": "Enable Mutating Tools"
+          }
+        },
+        "type": "object",
+        "required": ["tools", "enable_mutating_tools"],
+        "title": "McpAdminResponse"
+      },
+      "McpToolResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "inputSchema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Inputschema"
+          }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "McpToolResponse"
+      },
+      "Mediation": {
+        "type": "string",
+        "enum": ["vector", "cluster", "entity"],
+        "title": "Mediation",
+        "description": "What mediates 'similar': vectors, cluster co-membership, or entities."
+      },
+      "MetricPointResponse": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": ["ts", "value"],
+        "title": "MetricPointResponse"
+      },
+      "MetricSeriesResponse": {
+        "properties": {
+          "sample": {
+            "type": "string",
+            "title": "Sample"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Labels"
+          },
+          "metric_type": {
+            "type": "string",
+            "title": "Metric Type"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/MetricPointResponse"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": ["sample", "labels", "metric_type", "points"],
+        "title": "MetricSeriesResponse"
+      },
+      "MetricsSummaryResponse": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "tombstones": {
+            "$ref": "#/components/schemas/TombstoneBacklogSummary"
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/JobsSummary"
+          },
+          "query_log_dropped_rows": {
+            "type": "integer",
+            "title": "Query Log Dropped Rows"
+          },
+          "embedding_errors_by_provider": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Embedding Errors By Provider"
+          },
+          "rerank_degraded_total": {
+            "type": "integer",
+            "title": "Rerank Degraded Total"
+          },
+          "search_latency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchLatencySummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "breakers": {
+            "items": {
+              "$ref": "#/components/schemas/BreakerStateSummary"
+            },
+            "type": "array",
+            "title": "Breakers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "tombstones",
+          "jobs",
+          "query_log_dropped_rows",
+          "embedding_errors_by_provider",
+          "rerank_degraded_total",
+          "search_latency",
+          "breakers"
+        ],
+        "title": "MetricsSummaryResponse"
+      },
+      "MetricsTimeseriesResponse": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "title": "Metric"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/MetricSeriesResponse"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "current": {
+            "items": {
+              "$ref": "#/components/schemas/MetricSeriesResponse"
+            },
+            "type": "array",
+            "title": "Current"
+          }
+        },
+        "type": "object",
+        "required": ["metric", "series", "current"],
+        "title": "MetricsTimeseriesResponse"
+      },
+      "ModelBackfillResponse": {
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["not_started", "running", "complete", "failed"],
+            "title": "Status"
+          },
+          "total_chunks": {
+            "type": "integer",
+            "title": "Total Chunks"
+          },
+          "embedded_chunks": {
+            "type": "integer",
+            "title": "Embedded Chunks"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          },
+          "cursor_page_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor Page Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "status",
+          "total_chunks",
+          "embedded_chunks",
+          "total_tokens",
+          "cursor_page_id",
+          "started_at",
+          "updated_at",
+          "finished_at",
+          "last_error"
+        ],
+        "title": "ModelBackfillResponse",
+        "description": "GET /v1/models/{id}/backfill."
+      },
+      "ModelInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "dim": {
+            "type": "integer",
+            "title": "Dim"
+          },
+          "max_input_tokens": {
+            "type": "integer",
+            "title": "Max Input Tokens"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "model_name",
+          "dim",
+          "max_input_tokens",
+          "is_active",
+          "status"
+        ],
+        "title": "ModelInfo",
+        "description": "One registered embedding model."
+      },
+      "ModelListResponse": {
+        "properties": {
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelInfo"
+            },
+            "type": "array",
+            "title": "Models"
+          }
+        },
+        "type": "object",
+        "required": ["models"],
+        "title": "ModelListResponse",
+        "description": "GET /v1/models response."
+      },
+      "ModelReport": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "queries": {
+            "type": "integer",
+            "title": "Queries"
+          },
+          "ndcg": {
+            "type": "number",
+            "title": "Ndcg"
+          },
+          "reciprocal_rank": {
+            "type": "number",
+            "title": "Reciprocal Rank"
+          },
+          "recall": {
+            "type": "number",
+            "title": "Recall"
+          },
+          "recall_candidates": {
+            "type": "number",
+            "title": "Recall Candidates"
+          },
+          "rerank_lift": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank Lift"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "queries",
+          "ndcg",
+          "reciprocal_rank",
+          "recall",
+          "recall_candidates",
+          "rerank_lift"
+        ],
+        "title": "ModelReport",
+        "description": "Mean metrics over one model's scored runs."
+      },
+      "PageChunkResponse": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "title": "Chunk Id"
+          },
+          "ordinal": {
+            "type": "integer",
+            "title": "Ordinal"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "token_count": {
+            "type": "integer",
+            "title": "Token Count"
+          },
+          "char_start": {
+            "type": "integer",
+            "title": "Char Start"
+          },
+          "char_end": {
+            "type": "integer",
+            "title": "Char End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "ordinal",
+          "text",
+          "token_count",
+          "char_start",
+          "char_end"
+        ],
+        "title": "PageChunkResponse",
+        "description": "One stored chunk with its position in the page body."
+      },
+      "PageChunksResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/PageChunkResponse"
+            },
+            "type": "array",
+            "title": "Chunks"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "chunks"],
+        "title": "PageChunksResponse",
+        "description": "GET /v1/pages/{id}/chunks."
+      },
+      "PageEntitiesResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/EntitySummary"
+            },
+            "type": "array",
+            "title": "Entities"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "entities"],
+        "title": "PageEntitiesResponse",
+        "description": "GET /v1/pages/{id}/entities response."
+      },
+      "PageResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "canonical_url": {
+            "type": "string",
+            "title": "Canonical Url"
+          },
+          "original_url": {
+            "type": "string",
+            "title": "Original Url"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Text"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "first_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Seen At"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Seen At"
+          },
+          "visit_count": {
+            "type": "integer",
+            "title": "Visit Count"
+          },
+          "indexed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexed At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PageStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "page_id",
+          "canonical_url",
+          "original_url",
+          "domain",
+          "title",
+          "body_text",
+          "source",
+          "metadata",
+          "first_seen_at",
+          "last_seen_at",
+          "visit_count",
+          "indexed_at",
+          "status"
+        ],
+        "title": "PageResponse",
+        "description": "GET /v1/pages/{id}."
+      },
+      "PageResult": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "canonical_url": {
+            "type": "string",
+            "title": "Canonical Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "first_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Seen At"
+          },
+          "visit_count": {
+            "type": "integer",
+            "title": "Visit Count"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "cluster": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClusterRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ChunkResult"
+            },
+            "type": "array",
+            "title": "Chunks"
+          },
+          "exact_match": {
+            "type": "boolean",
+            "title": "Exact Match",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "page_id",
+          "canonical_url",
+          "title",
+          "domain",
+          "first_seen_at",
+          "visit_count",
+          "score",
+          "chunks"
+        ],
+        "title": "PageResult",
+        "description": "One ranked page."
+      },
+      "PageStatus": {
+        "type": "string",
+        "enum": ["queued", "indexing", "indexed", "failed", "dead"],
+        "title": "PageStatus",
+        "description": "Lifecycle of a page through the indexing pipeline."
+      },
+      "PageStatusBatchFoundResult": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PageStatus"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "features": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageStatusFeatures"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "found": {
+            "type": "boolean",
+            "const": true,
+            "title": "Found",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "status"],
+        "title": "PageStatusBatchFoundResult",
+        "description": "Status for a page known to the server."
+      },
+      "PageStatusBatchMissingResult": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "found": {
+            "type": "boolean",
+            "const": false,
+            "title": "Found",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["page_id"],
+        "title": "PageStatusBatchMissingResult",
+        "description": "Status result for an unknown or expired page id."
+      },
+      "PageStatusBatchRequest": {
+        "properties": {
+          "page_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Page Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["page_ids"],
+        "title": "PageStatusBatchRequest",
+        "description": "POST /v1/pages/status/batch envelope."
+      },
+      "PageStatusBatchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PageStatusBatchFoundResult"
+                },
+                {
+                  "$ref": "#/components/schemas/PageStatusBatchMissingResult"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "found",
+                "mapping": {
+                  "False": "#/components/schemas/PageStatusBatchMissingResult",
+                  "True": "#/components/schemas/PageStatusBatchFoundResult"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": ["results"],
+        "title": "PageStatusBatchResponse",
+        "description": "POST /v1/pages/status/batch response."
+      },
+      "PageStatusFeatures": {
+        "properties": {
+          "entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeatureStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "PageStatusFeatures",
+        "description": "Nested enrichment feature state."
+      },
+      "PageStatusResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PageStatus"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "features": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageStatusFeatures"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "status"],
+        "title": "PageStatusResponse",
+        "description": "GET /v1/pages/{id}/status."
+      },
+      "QueryLogListResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/QueryLogRunResponse"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": ["runs"],
+        "title": "QueryLogListResponse"
+      },
+      "QueryLogRunResponse": {
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "title": "Query Id"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "compare_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compare Id"
+          },
+          "query_text": {
+            "type": "string",
+            "title": "Query Text"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "active_model": {
+            "type": "string",
+            "title": "Active Model"
+          },
+          "reranker_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reranker Model"
+          },
+          "candidate_set": {
+            "items": {
+              "$ref": "#/components/schemas/LoggedHitResponse"
+            },
+            "type": "array",
+            "title": "Candidate Set"
+          },
+          "dense_hits": {
+            "items": {
+              "$ref": "#/components/schemas/LoggedHitResponse"
+            },
+            "type": "array",
+            "title": "Dense Hits"
+          },
+          "sparse_hits": {
+            "items": {
+              "$ref": "#/components/schemas/LoggedHitResponse"
+            },
+            "type": "array",
+            "title": "Sparse Hits"
+          },
+          "final_pages": {
+            "items": {
+              "$ref": "#/components/schemas/LoggedPageResponse"
+            },
+            "type": "array",
+            "title": "Final Pages"
+          },
+          "timing_ms": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Timing Ms"
+          },
+          "feedback": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Feedback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query_id",
+          "ts",
+          "kind",
+          "compare_id",
+          "query_text",
+          "params",
+          "active_model",
+          "reranker_model",
+          "candidate_set",
+          "dense_hits",
+          "sparse_hits",
+          "final_pages",
+          "timing_ms",
+          "feedback"
+        ],
+        "title": "QueryLogRunResponse"
+      },
+      "QueryScore": {
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "title": "Query Id"
+          },
+          "query_text": {
+            "type": "string",
+            "title": "Query Text"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "ndcg": {
+            "type": "number",
+            "title": "Ndcg"
+          },
+          "reciprocal_rank": {
+            "type": "number",
+            "title": "Reciprocal Rank"
+          },
+          "recall": {
+            "type": "number",
+            "title": "Recall"
+          },
+          "recall_candidates": {
+            "type": "number",
+            "title": "Recall Candidates"
+          },
+          "rerank_lift": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank Lift"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query_id",
+          "query_text",
+          "model",
+          "ndcg",
+          "reciprocal_rank",
+          "recall",
+          "recall_candidates",
+          "rerank_lift"
+        ],
+        "title": "QueryScore",
+        "description": "Metrics for one logged run."
+      },
+      "RecomputeResponse": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": ["accepted"],
+        "title": "RecomputeResponse",
+        "description": "POST /v1/clusters/recompute response."
+      },
+      "RegisterModelRequest": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "dim": {
+            "type": "integer",
+            "maximum": 8192,
+            "minimum": 1,
+            "title": "Dim"
+          },
+          "max_input_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Max Input Tokens"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["provider", "model_name", "dim", "max_input_tokens"],
+        "title": "RegisterModelRequest",
+        "description": "POST /v1/models body."
+      },
+      "RollupStrategy": {
+        "type": "string",
+        "enum": ["max", "mean_top_m", "sum_rrf"],
+        "title": "RollupStrategy",
+        "description": "How chunk scores pool into a page score.\n\nNo magic-number bonuses in v1: rerankers are calibrated, and arbitrary\nboosts would destroy their ranking. A bonus variant may be added later\nonly if eval proves lift."
+      },
+      "ScoreReport": {
+        "properties": {
+          "k": {
+            "type": "integer",
+            "title": "K"
+          },
+          "logged": {
+            "type": "integer",
+            "title": "Logged"
+          },
+          "labeled": {
+            "type": "integer",
+            "title": "Labeled"
+          },
+          "scored": {
+            "type": "integer",
+            "title": "Scored"
+          },
+          "skipped_no_positive": {
+            "type": "integer",
+            "title": "Skipped No Positive"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelReport"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "queries": {
+            "items": {
+              "$ref": "#/components/schemas/QueryScore"
+            },
+            "type": "array",
+            "title": "Queries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "k",
+          "logged",
+          "labeled",
+          "scored",
+          "skipped_no_positive",
+          "models",
+          "queries"
+        ],
+        "title": "ScoreReport",
+        "description": "Everything ``eval score`` emits."
+      },
+      "SearchBatchErrorResult": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "error",
+            "title": "Outcome",
+            "default": "error"
+          },
+          "error": {
+            "type": "string",
+            "enum": ["feature_unavailable", "no_active_model"],
+            "title": "Error"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": ["index", "query", "error", "detail"],
+        "title": "SearchBatchErrorResult",
+        "description": "One batch query that failed with a per-item (non-fatal) error."
+      },
+      "SearchBatchOkResult": {
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "title": "Query Id"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PageResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/Suggestion"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "timing_ms": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Timing Ms"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "ok",
+            "title": "Outcome",
+            "default": "ok"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query_id",
+          "results",
+          "offset",
+          "has_more",
+          "suggestions",
+          "timing_ms",
+          "index",
+          "query"
+        ],
+        "title": "SearchBatchOkResult",
+        "description": "One successful batch query with its full search response."
+      },
+      "SearchBatchRequest": {
+        "properties": {
+          "k": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "title": "K",
+            "default": 10
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Offset",
+            "default": 0
+          },
+          "candidates": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "Candidates",
+            "default": 100
+          },
+          "rerank": {
+            "type": "boolean",
+            "title": "Rerank",
+            "default": true
+          },
+          "chunks_per_page": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 0,
+            "title": "Chunks Per Page",
+            "default": 2
+          },
+          "rollup": {
+            "$ref": "#/components/schemas/RollupStrategy",
+            "default": "max"
+          },
+          "rollup_m": {
+            "type": "integer",
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Rollup M",
+            "default": 3
+          },
+          "rrf_k": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Rrf K",
+            "default": 60
+          },
+          "suggest": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 0,
+            "title": "Suggest",
+            "default": 3
+          },
+          "mediation": {
+            "$ref": "#/components/schemas/Mediation",
+            "default": "vector"
+          },
+          "recency_half_life_days": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recency Half Life Days"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchFiltersBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queries": {
+            "items": {
+              "type": "string",
+              "maxLength": 4000,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Queries"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["queries"],
+        "title": "SearchBatchRequest",
+        "description": "POST /v1/search/batch body: shared params + up to 20 query strings."
+      },
+      "SearchBatchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SearchBatchOkResult"
+                },
+                {
+                  "$ref": "#/components/schemas/SearchBatchErrorResult"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "outcome",
+                "mapping": {
+                  "error": "#/components/schemas/SearchBatchErrorResult",
+                  "ok": "#/components/schemas/SearchBatchOkResult"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": ["results"],
+        "title": "SearchBatchResponse",
+        "description": "POST /v1/search/batch response in input order."
+      },
+      "SearchFiltersBody": {
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SearchFiltersBody",
+        "description": "First-class search filters."
+      },
+      "SearchLatencySummary": {
+        "properties": {
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs"
+          },
+          "p50_ms": {
+            "type": "number",
+            "title": "P50 Ms"
+          },
+          "p95_ms": {
+            "type": "number",
+            "title": "P95 Ms"
+          }
+        },
+        "type": "object",
+        "required": ["since", "runs", "p50_ms", "p95_ms"],
+        "title": "SearchLatencySummary"
+      },
+      "SearchRequest": {
+        "properties": {
+          "k": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "title": "K",
+            "default": 10
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Offset",
+            "default": 0
+          },
+          "candidates": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "Candidates",
+            "default": 100
+          },
+          "rerank": {
+            "type": "boolean",
+            "title": "Rerank",
+            "default": true
+          },
+          "chunks_per_page": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 0,
+            "title": "Chunks Per Page",
+            "default": 2
+          },
+          "rollup": {
+            "$ref": "#/components/schemas/RollupStrategy",
+            "default": "max"
+          },
+          "rollup_m": {
+            "type": "integer",
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Rollup M",
+            "default": 3
+          },
+          "rrf_k": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Rrf K",
+            "default": 60
+          },
+          "suggest": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 0,
+            "title": "Suggest",
+            "default": 3
+          },
+          "mediation": {
+            "$ref": "#/components/schemas/Mediation",
+            "default": "vector"
+          },
+          "recency_half_life_days": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recency Half Life Days"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchFiltersBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Query"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["query"],
+        "title": "SearchRequest",
+        "description": "POST /v1/search body."
+      },
+      "SearchResponse": {
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "title": "Query Id"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PageResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/Suggestion"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "timing_ms": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Timing Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query_id",
+          "results",
+          "offset",
+          "has_more",
+          "suggestions",
+          "timing_ms"
+        ],
+        "title": "SearchResponse",
+        "description": "POST /v1/search response."
+      },
+      "SimilarResponse": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "mediation": {
+            "$ref": "#/components/schemas/Mediation"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "mediation", "results"],
+        "title": "SimilarResponse",
+        "description": "GET /v1/pages/{id}/similar response."
+      },
+      "SimilarResult": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "canonical_url": {
+            "type": "string",
+            "title": "Canonical Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "canonical_url", "title", "score", "reason"],
+        "title": "SimilarResult",
+        "description": "One similar page."
+      },
+      "Suggestion": {
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": ["page_id", "title", "reason"],
+        "title": "Suggestion",
+        "description": "A related page appended to the response."
+      },
+      "TombstoneBacklogSummary": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          },
+          "verified": {
+            "type": "integer",
+            "title": "Verified"
+          }
+        },
+        "type": "object",
+        "required": ["pending", "deleted", "verified"],
+        "title": "TombstoneBacklogSummary"
+      },
+      "UndoMergeResponse": {
+        "properties": {
+          "restored_entity_id": {
+            "type": "string",
+            "title": "Restored Entity Id"
+          }
+        },
+        "type": "object",
+        "required": ["restored_entity_id"],
+        "title": "UndoMergeResponse",
+        "description": "POST /v1/entities/merges/{id}/undo response."
+      },
+      "UpdateWatchRequest": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Hours"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UpdateWatchRequest",
+        "description": "PATCH /v1/watches/{watch_id} body; omitted fields stay unchanged.\n\n``url`` is immutable: it is the watch's dedup identity — delete and\nrecreate to point a watch elsewhere."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      },
+      "WatchKind": {
+        "type": "string",
+        "enum": ["rss", "youtube"],
+        "title": "WatchKind",
+        "description": "Kinds of pull sources a watch can poll."
+      },
+      "WatchListResponse": {
+        "properties": {
+          "watches": {
+            "items": {
+              "$ref": "#/components/schemas/WatchResponse"
+            },
+            "type": "array",
+            "title": "Watches"
+          }
+        },
+        "type": "object",
+        "required": ["watches"],
+        "title": "WatchListResponse",
+        "description": "GET /v1/watches response."
+      },
+      "WatchResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WatchKind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "interval_hours": {
+            "type": "integer",
+            "title": "Interval Hours"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          },
+          "next_run_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Next Run At"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_status": {
+            "$ref": "#/components/schemas/WatchStatus"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_item_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Item Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "title",
+          "enabled",
+          "interval_hours",
+          "config",
+          "next_run_at",
+          "last_run_at",
+          "last_status",
+          "last_error",
+          "last_item_count",
+          "created_at"
+        ],
+        "title": "WatchResponse",
+        "description": "One watch with its schedule and last-poll health."
+      },
+      "WatchRunAcceptedResponse": {
+        "properties": {
+          "watch_id": {
+            "type": "string",
+            "title": "Watch Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": ["watch_id", "job_id"],
+        "title": "WatchRunAcceptedResponse",
+        "description": "POST /v1/watches/{watch_id}/run response (202)."
+      },
+      "WatchStatus": {
+        "type": "string",
+        "enum": ["pending", "ok", "error"],
+        "title": "WatchStatus",
+        "description": "Outcome of a watch's most recent poll."
+      },
+      "WhoAmIResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          }
+        },
+        "type": "object",
+        "required": ["name", "scopes"],
+        "title": "WhoAmIResponse",
+        "description": "Authenticated token identity and effective scopes."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -14,7 +14,7 @@ const register = `# Security Risk Register
 | Package | Advisory | Current path | Decision | Next review |
 | --- | --- | --- | --- | --- |
 | \`esbuild <= 0.24.2\` | Dev server request exposure | \`drizzle-kit\` | Temporarily accepted. | 2026-06-30 |
-| \`ws 8.19.0\` | DoS via excessive headers | \`react-cosmos\` | Temporarily accepted. | 2025-01-15 |
+| \`ws 8.19.0\` | DoS via excessive headers | \`development tooling\` | Temporarily accepted. | 2025-01-15 |
 `;
 
 describe('risk register policy', () => {

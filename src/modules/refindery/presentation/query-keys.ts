@@ -1,6 +1,6 @@
 /**
- * Central query-key factory. Every key is prefixed with the token identity so
- * switching tokens invalidates all cached refindery data cleanly.
+ * Central query-key factory. Every key shares the refindery namespace so token
+ * changes can remove all cached API data before the new identity refetches.
  */
 export const refineryKeys = {
   all: ['refindery'] as const,
@@ -38,7 +38,8 @@ export const refineryKeys = {
   pageChunks: (id: string) => [...refineryKeys.all, 'page-chunks', id] as const,
   pageEntities: (id: string) =>
     [...refineryKeys.all, 'page-entities', id] as const,
-  similar: (id: string) => [...refineryKeys.all, 'similar', id] as const,
+  similar: (id: string, mediation?: string) =>
+    [...refineryKeys.all, 'similar', id, mediation ?? 'vector'] as const,
 } as const;
 
 export const POLL = {

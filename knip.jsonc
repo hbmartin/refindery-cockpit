@@ -5,6 +5,8 @@
     "config": ["stryker.*.config.mjs"],
   },
   "ignoreDependencies": [
+    // Used by the retained platform avatar primitive, which is not currently reachable from an app entrypoint.
+    "boring-avatars",
     // Manual copy-paste detection; configured via the "jscpd" key in package.json.
     "jscpd",
   ],

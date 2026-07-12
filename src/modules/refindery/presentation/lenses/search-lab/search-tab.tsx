@@ -1,18 +1,38 @@
 import { useMutation } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { getRouteApi, Link } from '@tanstack/react-router';
 import { SearchIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/platform/components/ui/badge';
 import { Button } from '@/platform/components/ui/button';
+import { Checkbox } from '@/platform/components/ui/checkbox';
 import { Input } from '@/platform/components/ui/input';
+import { NumberInput } from '@/platform/components/ui/number-input';
 
+import { HistoryPanel } from './history-panel';
+import { searchLabSearchDefaults } from './search-lab-search';
 import { TimingBar } from './timing-bar';
-import { errorMessage, refineryApi } from '../../../client';
+import { useUrlSyncedDraft } from './use-url-synced-draft';
 import type { PageResult, SearchRequest, SearchResponse } from '../../../index';
 import { QueryBoundary } from '../../components/query-boundary';
-import { useApiMutation } from '../../hooks';
+import { errorMessage, useApiMutation } from '../../hooks';
+import { useRefinderyApi } from '../../refindery-client-context';
+import { useRecordSearch } from '../../use-search-history';
+import { useHasToken } from '../../use-token';
+
+const route = getRouteApi('/_shell/search');
+
+type SearchRun = {
+  query: string;
+  k: number;
+  candidates: number;
+  rerank: boolean;
+  domain: string;
+};
+
+const runSignature = (run: SearchRun): string =>
+  JSON.stringify([run.query, run.k, run.candidates, run.rerank, run.domain]);
 
 function ResultCard({
   result,
@@ -21,6 +41,7 @@ function ResultCard({
   result: PageResult;
   queryId: string;
 }) {
+  const refineryApi = useRefinderyApi();
   const feedback = useApiMutation(
     (relevant: boolean) =>
       refineryApi.feedback({
@@ -90,25 +111,93 @@ function ResultCard({
 }
 
 export function SearchTab() {
-  const [query, setQuery] = useState('');
-  const [k, setK] = useState(10);
-  const [candidates, setCandidates] = useState(100);
-  const [rerank, setRerank] = useState(true);
-  const [domain, setDomain] = useState('');
+  const refineryApi = useRefinderyApi();
+  const params = route.useSearch();
+  const navigate = route.useNavigate();
+  const hasToken = useHasToken();
 
+  // Local drafts so typing never navigates; the URL is the source of truth
+  // for executed runs. Each draft resyncs only from its own param so a
+  // committed number never wipes an in-progress query draft.
+  const [query, setQuery] = useUrlSyncedDraft(params.query);
+  const [domain, setDomain] = useUrlSyncedDraft(params.domain);
+  const [k, setK] = useUrlSyncedDraft<number | null>(params.k);
+  const [candidates, setCandidates] = useUrlSyncedDraft<number | null>(
+    params.candidates
+  );
+
+  const recordSearch = useRecordSearch();
   const search = useMutation<SearchResponse, unknown, SearchRequest>({
     mutationFn: (body) => refineryApi.search(body),
+    onSuccess: (_data, variables) => {
+      // Only successful executions enter history; replays bump recency via dedup.
+      recordSearch({
+        query: variables.query,
+        k: variables.k ?? searchLabSearchDefaults.k,
+        candidates: variables.candidates ?? searchLabSearchDefaults.candidates,
+        rerank: variables.rerank ?? searchLabSearchDefaults.rerank,
+        domain: variables.filters?.domain ?? '',
+        executedAt: new Date().toISOString(),
+      });
+    },
     onError: (error) => toast.error(errorMessage(error)),
   });
 
-  const run = () => {
-    if (!query.trim()) return;
+  const lastRun = useRef<string | null>(null);
+  const execute = (next: SearchRun) => {
+    lastRun.current = runSignature(next);
     search.mutate({
+      query: next.query,
+      k: next.k,
+      candidates: next.candidates,
+      rerank: next.rerank,
+      filters: next.domain ? { domain: next.domain } : undefined,
+    });
+  };
+
+  // Auto-run whenever the URL carries a new runnable search: one mechanism
+  // serves direct runs, deep links, history replay, and the command palette.
+  useEffect(() => {
+    if (!hasToken || !params.query.trim()) return;
+    if (lastRun.current === runSignature(params)) return;
+    execute(params);
+    // Runs key on the URL params; execute/search identities are per-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    hasToken,
+    params.query,
+    params.k,
+    params.candidates,
+    params.rerank,
+    params.domain,
+  ]);
+
+  const run = () => {
+    const next: SearchRun = {
       query: query.trim(),
-      k,
-      candidates,
-      rerank,
-      filters: domain.trim() ? { domain: domain.trim() } : undefined,
+      domain: domain.trim(),
+      k: k ?? searchLabSearchDefaults.k,
+      candidates: candidates ?? searchLabSearchDefaults.candidates,
+      rerank: params.rerank,
+    };
+    if (!next.query) return;
+    if (lastRun.current === runSignature(next)) {
+      // Same params as the last run: the URL won't change, so re-issue directly.
+      execute(next);
+      return;
+    }
+    void navigate({ search: (prev) => ({ ...prev, ...next }) });
+  };
+
+  // Numbers commit on blur (Enter also blurs), never mid-typing.
+  const commitNumbers = () => {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        k: k ?? searchLabSearchDefaults.k,
+        candidates: candidates ?? searchLabSearchDefaults.candidates,
+      }),
+      replace: true,
     });
   };
 
@@ -136,30 +225,41 @@ export function SearchTab() {
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <label className="flex items-center gap-1">
             k
-            <Input
-              type="number"
+            <NumberInput
+              size="sm"
+              min={1}
+              step={1}
               value={k}
-              onChange={(e) => setK(Number(e.target.value) || 10)}
-              className="h-7 w-16"
+              onValueChange={(value) => setK(value)}
+              onBlur={commitNumbers}
+              className="w-16"
             />
           </label>
           <label className="flex items-center gap-1">
             candidates
-            <Input
-              type="number"
+            <NumberInput
+              size="sm"
+              min={1}
+              step={1}
               value={candidates}
-              onChange={(e) => setCandidates(Number(e.target.value) || 100)}
-              className="h-7 w-20"
+              onValueChange={(value) => setCandidates(value)}
+              onBlur={commitNumbers}
+              className="w-20"
             />
           </label>
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={rerank}
-              onChange={(e) => setRerank(e.target.checked)}
-            />
+          <Checkbox
+            size="sm"
+            checked={params.rerank}
+            onCheckedChange={(checked) =>
+              navigate({
+                search: (prev) => ({ ...prev, rerank: checked === true }),
+                replace: true,
+              })
+            }
+            labelProps={{ className: 'items-center' }}
+          >
             rerank
-          </label>
+          </Checkbox>
           <label className="flex items-center gap-1">
             domain
             <Input
@@ -171,6 +271,8 @@ export function SearchTab() {
           </label>
         </div>
       </div>
+
+      <HistoryPanel />
 
       {search.data?.timing_ms ? (
         <div className="rounded-lg border border-border/60 bg-card/40 p-3">

@@ -43,7 +43,6 @@ export default defineConfig({
   projects: [
     {
       name: 'setup',
-      // eslint-disable-next-line sonarjs/slow-regex
       testMatch: /.*\.setup\.ts/,
       use: { locale: DEFAULT_LANGUAGE_KEY },
     },

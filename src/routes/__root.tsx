@@ -24,6 +24,7 @@ import {
 } from '@/app/devtools/presentation';
 import { Providers } from '@/composition/providers';
 import { initSsrApp } from '@/modules/kernel/server';
+import { isDevEnvironment } from '@/platform/env/config';
 import { createCspNonceBridgeScript } from '@/platform/http/csp-nonce';
 import type { RouterContext } from '@/platform/router/context';
 import { observedLoader } from '@/platform/router/route-observability';
@@ -36,7 +37,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     // at /admin) whose shell is prerendered with no server, so calling this
     // server function during prerender would hang serialization. Client-side
     // language detection handles the runtime case.
-    if (import.meta.env.SSR && import.meta.env.DEV) {
+    if (import.meta.env.SSR && isDevEnvironment()) {
       const { language } = await initSsrApp();
       await i18n.changeLanguage(language);
     }

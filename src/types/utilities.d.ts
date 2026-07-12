@@ -1,4 +1,3 @@
-/* eslint-disable sonarjs/redundant-type-aliases */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare module '@fontsource-variable/inter';
 

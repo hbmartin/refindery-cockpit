@@ -1,6 +1,10 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
   "include": [
+    "node_modules/vite/client.d.ts",
     "src/platform/http/**/*.ts",
     "src/platform/lib/dayjs/**/*.ts",
     "src/platform/lib/get-page-title.ts",

@@ -64,3 +64,106 @@ describe('parsePrometheus', () => {
     ).toBeUndefined();
   });
 });
+
+describe('parsePrometheus value handling', () => {
+  it('parses +Inf, -Inf, and drops NaN samples', () => {
+    const metrics = parsePrometheus(
+      ['up_high +Inf', 'up_low -Inf', 'broken NaN'].join('\n')
+    );
+    expect(gauge(metrics, 'up_high')).toBe(Number.POSITIVE_INFINITY);
+    expect(gauge(metrics, 'up_low')).toBe(Number.NEGATIVE_INFINITY);
+    expect(metrics.samples.find((s) => s.name === 'broken')).toBeUndefined();
+  });
+
+  it('ignores a trailing timestamp after the value', () => {
+    expect(
+      gauge(parsePrometheus('queue_depth 7 1699999999'), 'queue_depth')
+    ).toBe(7);
+  });
+
+  it('unescapes quotes, newlines, and backslashes in label values', () => {
+    const metrics = parsePrometheus(
+      'errs{msg="say \\"hi\\"",path="a\\\\b",text="line\\nbreak"} 1'
+    );
+    const sample = metrics.samples[0];
+    expect(sample?.labels.msg).toBe('say "hi"');
+    expect(sample?.labels.path).toBe('a\\b');
+    expect(sample?.labels.text).toBe('line\nbreak');
+  });
+
+  it('handles empty label blocks and skips malformed pairs', () => {
+    const metrics = parsePrometheus('empty{} 3\nweird{noequals} 4');
+    expect(gauge(metrics, 'empty')).toBe(3);
+    expect(metrics.samples.find((s) => s.name === 'weird')?.labels).toEqual({});
+  });
+
+  it('splits label values containing commas correctly', () => {
+    const metrics = parsePrometheus('m{a="x,y",b="z"} 2');
+    expect(metrics.samples[0]?.labels).toEqual({ a: 'x,y', b: 'z' });
+  });
+});
+
+describe('sumByLabel and gauge details', () => {
+  it('sums everything under the empty key without a labelKey', () => {
+    const totals = sumByLabel(parsePrometheus(SAMPLE), 'ingest_pages_total');
+    expect(totals.get('')).toBe(123);
+  });
+
+  it('groups samples missing the label under the empty key', () => {
+    const totals = sumByLabel(parsePrometheus('m{k="a"} 1\nm 2'), 'm', 'k');
+    expect(totals.get('a')).toBe(1);
+    expect(totals.get('')).toBe(2);
+  });
+
+  it('gauge returns the first matching sample', () => {
+    expect(gauge(parsePrometheus('m{k="a"} 1\nm{k="b"} 2'), 'm')).toBe(1);
+  });
+});
+
+describe('histogramQuantile details', () => {
+  it('interpolates linearly inside a bucket', () => {
+    const metrics = parsePrometheus(SAMPLE);
+    // rank = 0.5 * 20 = 10; bucket le=0.5 spans counts 5..15 over 0.1..0.5:
+    // 0.1 + ((10 - 5) / 10) * (0.5 - 0.1) = 0.3
+    expect(
+      histogramQuantile(metrics, 'search_duration_seconds', 0.5)
+    ).toBeCloseTo(0.3, 10);
+    // rank = 0.25 * 20 = 5 lands exactly on the first bucket boundary.
+    expect(
+      histogramQuantile(metrics, 'search_duration_seconds', 0.25)
+    ).toBeCloseTo(0.1, 10);
+  });
+
+  it('returns the previous finite boundary when the rank falls in +Inf', () => {
+    const metrics = parsePrometheus(
+      ['h_bucket{le="0.1"} 5', 'h_bucket{le="+Inf"} 10'].join('\n')
+    );
+    expect(histogramQuantile(metrics, 'h', 0.9)).toBe(0.1);
+  });
+
+  it('returns undefined when the histogram is empty', () => {
+    const metrics = parsePrometheus(
+      ['h_bucket{le="0.1"} 0', 'h_bucket{le="+Inf"} 0'].join('\n')
+    );
+    expect(histogramQuantile(metrics, 'h', 0.5)).toBeUndefined();
+  });
+
+  it('respects a label filter to select one series', () => {
+    const metrics = parsePrometheus(
+      [
+        'h_bucket{model="a",le="1"} 10',
+        'h_bucket{model="a",le="+Inf"} 10',
+        'h_bucket{model="b",le="5"} 10',
+        'h_bucket{model="b",le="+Inf"} 10',
+      ].join('\n')
+    );
+    expect(histogramQuantile(metrics, 'h', 0.5, { model: 'a' })).toBeCloseTo(
+      0.5,
+      10
+    );
+    expect(histogramQuantile(metrics, 'h', 0.5, { model: 'b' })).toBeCloseTo(
+      2.5,
+      10
+    );
+  });
+});

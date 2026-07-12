@@ -4,7 +4,6 @@ import { Badge } from '@/platform/components/ui/badge';
 import { Button } from '@/platform/components/ui/button';
 
 import { ProjectionScatter } from './projection-scatter';
-import { refineryApi, refineryKeys } from '../../../client';
 import type { Cluster, ClusterRun } from '../../../index';
 import { Column, DataTable } from '../../components/data-table';
 import { LensHeader, LensPage, LensSection } from '../../components/lens';
@@ -16,8 +15,11 @@ import {
   useClusters,
   useProjection,
 } from '../../hooks';
+import { refineryKeys } from '../../query-keys';
+import { useRefinderyApi } from '../../refindery-client-context';
 
 function RecomputeButton() {
+  const refineryApi = useRefinderyApi();
   const recompute = useApiMutation(() => refineryApi.recomputeClusters(), {
     success: 'Cluster recompute queued',
     invalidate: [refineryKeys.all],

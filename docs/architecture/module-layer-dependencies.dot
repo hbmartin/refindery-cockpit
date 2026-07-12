@@ -14,10 +14,26 @@ digraph ModuleLayerDependencies {
     "kernel/transport" [label="transport", fillcolor="#ede9fe"];
   }
 
+  subgraph cluster_refindery {
+    label="refindery";
+    color="#d1d5db";
+    style="rounded";
+    "refindery/public" [label="public", fillcolor="#f3f4f6"];
+    "refindery/application" [label="application", fillcolor="#dbeafe"];
+    "refindery/domain" [label="domain", fillcolor="#dcfce7"];
+    "refindery/infrastructure" [label="infrastructure", fillcolor="#ffedd5"];
+    "refindery/presentation" [label="presentation", fillcolor="#fef9c3"];
+  }
+
   "kernel/infrastructure" -> "kernel/domain" [style="solid"];
   "kernel/public" -> "kernel/application" [style="dotted"];
   "kernel/public" -> "kernel/domain" [style="dotted"];
   "kernel/public" -> "kernel/infrastructure" [style="dotted"];
   "kernel/public" -> "kernel/transport" [style="dashed"];
   "kernel/transport" -> "kernel/domain" [style="solid"];
+  "refindery/infrastructure" -> "refindery/domain" [style="solid"];
+  "refindery/presentation" -> "refindery/domain" [style="solid"];
+  "refindery/public" -> "refindery/domain" [style="dotted"];
+  "refindery/public" -> "refindery/infrastructure" [style="dotted"];
+  "refindery/public" -> "refindery/presentation" [style="dotted"];
 }

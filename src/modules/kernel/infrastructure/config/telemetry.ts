@@ -74,16 +74,11 @@ export type TelemetryConfig = {
 
 let cachedTelemetryConfig: TelemetryConfig | undefined;
 
-export function getTelemetryConfig(): TelemetryConfig {
-  if (cachedTelemetryConfig) return cachedTelemetryConfig;
-
-  const env = parseEnv(telemetryEnvSchema);
+export function parseTelemetryConfig(
+  source?: Record<string, unknown>
+): TelemetryConfig {
+  const env = parseEnv(telemetryEnvSchema, source);
   const isProduction = isProdRuntimeEnvironment(env);
-  if (isProduction && !env.OTEL_COLLECTOR_URL) {
-    throw new ConfigurationError(
-      'OTEL_COLLECTOR_URL is required in production telemetry configuration.'
-    );
-  }
   if (
     isProduction &&
     env.OTEL_COLLECTOR_URL &&
@@ -105,7 +100,7 @@ export function getTelemetryConfig(): TelemetryConfig {
     env,
   });
 
-  cachedTelemetryConfig = {
+  return {
     dsn: env.SENTRY_DSN,
     browserDsn: env.VITE_SENTRY_DSN ?? env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT,
@@ -129,5 +124,10 @@ export function getTelemetryConfig(): TelemetryConfig {
     logMaxEvents: env.TELEMETRY_LOG_MAX_EVENTS ?? 50,
     rateLimitPerMinute: env.TELEMETRY_RATE_LIMIT_PER_MINUTE ?? 600,
   };
+}
+
+export function getTelemetryConfig(): TelemetryConfig {
+  if (cachedTelemetryConfig) return cachedTelemetryConfig;
+  cachedTelemetryConfig = parseTelemetryConfig();
   return cachedTelemetryConfig;
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { parsePrometheus, type PromMetrics } from '../../../client';
+import type { PromMetrics } from '../../../domain/prometheus';
 import type { SeriesPoint } from '../../components/charts';
-import { useMetricsText } from '../../hooks';
+import { useParsedMetrics } from '../../use-parsed-metrics';
 
 const MAX_POINTS = 120;
 
@@ -23,12 +23,13 @@ export type MetricsSnapshot = {
 export function useMetricsHistory(
   selectors: Record<string, (m: PromMetrics) => number>
 ): MetricsSnapshot {
-  const query = useMetricsText();
-  const historyRef = useRef<Map<string, SeriesPoint[]>>(new Map());
+  const query = useParsedMetrics();
+  const [history, setHistory] = useState<Map<string, SeriesPoint[]>>(
+    () => new Map()
+  );
   const lastStampRef = useRef<string | undefined>(undefined);
-  const [, forceRender] = useState(0);
 
-  const parsed = query.data ? parsePrometheus(query.data) : undefined;
+  const parsed = query.data;
 
   useEffect(() => {
     if (!query.data || !parsed) return;
@@ -38,20 +39,24 @@ export function useMetricsHistory(
     lastStampRef.current = stamp;
 
     const t = query.dataUpdatedAt;
-    for (const [key, reducer] of Object.entries(selectors)) {
-      const series = historyRef.current.get(key) ?? [];
-      series.push({ t, value: reducer(parsed) });
-      if (series.length > MAX_POINTS) series.shift();
-      historyRef.current.set(key, series);
-    }
-    forceRender((n) => n + 1);
+    setHistory((current) => {
+      const next = new Map(current);
+      for (const [key, reducer] of Object.entries(selectors)) {
+        const series = [
+          ...(next.get(key) ?? []),
+          { t, value: reducer(parsed) },
+        ];
+        next.set(key, series.slice(-MAX_POINTS));
+      }
+      return next;
+    });
     // parsed is derived from query.data; keying on dataUpdatedAt covers refreshes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.dataUpdatedAt, query.data]);
 
   return {
     parsed,
-    history: historyRef.current,
+    history,
     updatedAt: query.dataUpdatedAt || undefined,
     isLoading: query.isLoading,
     isError: query.isError,

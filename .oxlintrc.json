@@ -4,10 +4,9 @@
   "jsPlugins": [
     "@tanstack/eslint-plugin-query",
     "@tanstack/eslint-plugin-router",
-    "eslint-plugin-simple-import-sort",
-    "eslint-plugin-sonarjs"
+    "eslint-plugin-simple-import-sort"
   ],
-  "ignorePatterns": [".github/codeql/**", "**/*.testproj/**"],
+  "ignorePatterns": [".github/codeql/**", "**/*.testproj/**", "**/*.gen.ts"],
   "categories": {
     "correctness": "error"
   },
@@ -91,10 +90,7 @@
     "@tanstack/query/mutation-property-order": "error",
     "@tanstack/query/prefer-query-options": "warn",
     "@tanstack/router/create-route-property-order": "error",
-    "@tanstack/router/route-param-names": "error",
-    "sonarjs/cognitive-complexity": ["warn", 50],
-    "sonarjs/prefer-immediate-return": "warn",
-    "sonarjs/todo-tag": "warn"
+    "@tanstack/router/route-param-names": "error"
   },
   "overrides": [
     {
@@ -136,10 +132,7 @@
           }
         ],
         "simple-import-sort/exports": "error",
-        "@tanstack/query/prefer-query-options": "error",
-        "sonarjs/cognitive-complexity": ["error", 50],
-        "sonarjs/prefer-immediate-return": "error",
-        "sonarjs/todo-tag": "error"
+        "@tanstack/query/prefer-query-options": "error"
       }
     },
     {

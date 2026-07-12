@@ -11,13 +11,10 @@ import { AppError } from '@/modules/kernel/domain/errors/app-error';
 const getContent = () => {
   const getCommitHashShort = () => {
     try {
-      return (
-        childProcess
-          // eslint-disable-next-line sonarjs/no-os-command-from-path
-          .execSync('git rev-parse --short HEAD')
-          .toString()
-          .trim()
-      );
+      return childProcess
+        .execSync('git rev-parse --short HEAD')
+        .toString()
+        .trim();
     } catch {
       return null;
     }
@@ -25,7 +22,6 @@ const getContent = () => {
 
   const getCommitHash = () => {
     try {
-      // eslint-disable-next-line sonarjs/no-os-command-from-path
       return childProcess.execSync('git rev-parse HEAD').toString().trim();
     } catch {
       return null;

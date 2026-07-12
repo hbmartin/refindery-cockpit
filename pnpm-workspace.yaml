@@ -17,7 +17,6 @@ overrides:
   # still imports root migration constants removed at runtime in kysely 0.29.
   kysely: 0.28.17
   qs: 6.15.2
-  'react-cosmos>ws': 8.21.0
   shell-quote: 1.8.4
   svgo: 4.0.1
   'testcontainers>undici': 7.28.0

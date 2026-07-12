@@ -5,6 +5,8 @@ export { AppError } from './domain/errors/app-error';
 export { IdValidationError } from './domain/errors/id-validation-error';
 export type { ParseResult } from './domain/ids';
 export * from './domain/ids';
+export { parseHttpConfig } from './infrastructure/config/http';
+export { parseTelemetryConfig } from './infrastructure/config/telemetry';
 export {
   type OutcomeHandlerConfig,
   unwrapApplicationResult,

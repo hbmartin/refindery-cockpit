@@ -7,13 +7,21 @@ import { Badge } from '@/platform/components/ui/badge';
 import { Button } from '@/platform/components/ui/button';
 import { Input } from '@/platform/components/ui/input';
 
-import { errorMessage, refineryApi, refineryKeys } from '../../../client';
 import type { BlacklistEntry, ConfigField, ForgetResult } from '../../../index';
 import { LensHeader, LensPage, LensSection } from '../../components/lens';
 import { QueryBoundary } from '../../components/query-boundary';
 import { TypedConfirmDialog } from '../../components/typed-confirm';
 import { WriteGate } from '../../components/write-gate';
-import { useApiMutation, useBlacklist, useConfig, useMcp } from '../../hooks';
+import { forgetTarget } from '../../forget-target';
+import {
+  errorMessage,
+  useApiMutation,
+  useBlacklist,
+  useConfig,
+  useMcp,
+} from '../../hooks';
+import { refineryKeys } from '../../query-keys';
+import { useRefinderyApi } from '../../refindery-client-context';
 
 function ConfigInspector() {
   const { data, isLoading, isError, error } = useConfig();
@@ -112,6 +120,7 @@ function McpPanel() {
 }
 
 function BlacklistPanel() {
+  const refineryApi = useRefinderyApi();
   const { data, isLoading, isError, error } = useBlacklist();
   const remove = useApiMutation(
     (id: string) => refineryApi.removeBlacklist(id),
@@ -156,10 +165,11 @@ function BlacklistPanel() {
 }
 
 function ForgetPanel() {
+  const refineryApi = useRefinderyApi();
   const [url, setUrl] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const forget = useMutation<ForgetResult, unknown, void>({
-    mutationFn: () => refineryApi.forget({ url: url.trim() }),
+    mutationFn: () => refineryApi.forget(forgetTarget(url)),
     onSuccess: (result) => {
       toast.success(
         `Purged ${result.pages_purged} pages, queued ${result.vector_deletes_queued} deletes`

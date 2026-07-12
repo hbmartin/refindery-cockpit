@@ -107,12 +107,12 @@ export const initOpenTelemetryServer = (): TelemetryAdapter | undefined => {
 
   const loggerProvider = new LoggerProvider({
     processors: [
-      new BatchLogRecordProcessor(
-        new OTLPLogExporter({
+      new BatchLogRecordProcessor({
+        exporter: new OTLPLogExporter({
           headers,
           url: telemetrySignalUrl(config.collectorUrl, 'logs'),
-        })
-      ),
+        }),
+      }),
     ],
     resource,
   });
