@@ -14,13 +14,14 @@ import {
 } from '@/platform/components/ui/card';
 import { Input } from '@/platform/components/ui/input';
 
-import { refineryKeys, setToken } from '../../../client';
 import { LensHeader, LensPage } from '../../components/lens';
 import { useWhoAmI } from '../../hooks';
-import { useToken } from '../../use-token';
+import { refineryKeys } from '../../query-keys';
+import { useSetToken, useToken } from '../../use-token';
 
 export function SettingsPage() {
   const token = useToken();
+  const setToken = useSetToken();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const whoami = useWhoAmI();
@@ -30,13 +31,13 @@ export function SettingsPage() {
     if (!next) return;
     setToken(next);
     setDraft('');
-    void queryClient.invalidateQueries({ queryKey: refineryKeys.all });
+    queryClient.removeQueries({ queryKey: refineryKeys.all });
     toast.success('Token saved');
   };
 
   const clear = () => {
     setToken(null);
-    void queryClient.invalidateQueries({ queryKey: refineryKeys.all });
+    queryClient.removeQueries({ queryKey: refineryKeys.all });
     toast.success('Token cleared');
   };
 

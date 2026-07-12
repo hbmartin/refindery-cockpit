@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/modules/refindery/domain/**/*.ts"],
+  "exclude": ["**/index.ts", "**/api-types.ts", "**/*.gen.ts"]
+}

@@ -14,6 +14,7 @@ export type ApiErrorKind =
   | 'unprocessable' // 422 — validation
   | 'unavailable' // 503 — not ready
   | 'network' // transport failure (no response)
+  | 'contract' // 2xx body failed the response schema — backend/cockpit drift
   | 'http'; // any other status
 
 export type ApiError = {
@@ -112,6 +113,19 @@ export const networkError = (message: string): ApiError => ({
   kind: 'network',
   status: 0,
   message,
+});
+
+/** A successful response whose body failed the expected schema: refindery and
+ * the cockpit have drifted. Infrastructure converts validation issues into
+ * `fields`; the domain owns only the shape. */
+export const contractError = (
+  message: string,
+  fields?: { path: string; message: string }[]
+): ApiError => ({
+  kind: 'contract',
+  status: 0,
+  message,
+  fields,
 });
 
 export function isApiError(value: unknown): value is ApiError {

@@ -77,8 +77,10 @@ describe('Calendar', () => {
       />
     );
 
-    // 12 always exist in a month
-    const targetDate = withDayOfMonth(new Date(), 12);
+    // Both 12 and 13 always exist in a month; avoid today's date — clicking
+    // the already-selected day deselects and calls onSelect(undefined).
+    const targetDay = new Date().getDate() === 12 ? 13 : 12;
+    const targetDate = withDayOfMonth(new Date(), targetDay);
     const ariaLabel = formatCalendarAriaDate(targetDate);
 
     // exact false because we don't provide the end of the aria-label (the year mostly)

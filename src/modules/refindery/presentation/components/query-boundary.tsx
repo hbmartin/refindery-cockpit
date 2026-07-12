@@ -7,7 +7,7 @@ import { cn } from '@/platform/lib/tailwind/utils';
 import { Button } from '@/platform/components/ui/button';
 
 import { useHasToken } from '../use-token';
-import { isApiError } from '../../client';
+import { isApiError } from '../../domain/errors';
 
 type QueryBoundaryProps = {
   isLoading: boolean;
@@ -60,7 +60,12 @@ export function QueryBoundary({
         <KeyRoundIcon className="size-6 text-muted-foreground" />
         <p className="font-medium text-foreground">No token stored</p>
         <p>Paste a refindery bearer token to connect.</p>
-        <Button render={<Link to="/settings" />} size="sm" className="mt-1">
+        <Button
+          render={<Link to="/settings" />}
+          nativeButton={false}
+          size="sm"
+          className="mt-1"
+        >
           Open Settings
         </Button>
       </Centered>
@@ -93,6 +98,7 @@ export function QueryBoundary({
         {unauthorized ? (
           <Button
             render={<Link to="/settings" />}
+            nativeButton={false}
             size="sm"
             variant="secondary"
             className="mt-1"

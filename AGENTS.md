@@ -1,11 +1,15 @@
-# Agent Instructions for start-ui-web
-
+# Agent Instructions for refindery-cockpit
 
 ## What This Codebase Is
 
-A TanStack Start application in TypeScript, organized as a strict modular monolith with hexagonal boundaries per capability. UI primitives and shared technical utilities live under `src/platform`; app-owned shell/support resources live under `src/app`; business capabilities live under `src/modules`; production wiring lives under `src/composition`.
-
-This is the **minimal boilerplate** fork: the sample business features (book, genre), authentication (Better Auth), persistence (Drizzle ORM/Postgres), and transactional email (Resend) have been removed. Only the `kernel` module remains under `src/modules`. The rules below describe the architecture pattern to follow when adding new capabilities — the auth/persistence/email specifics apply once you reintroduce those adapters.
+The **refindery cockpit**: a local, single-user TanStack Start application for
+operating a running [refindery](https://github.com/hbmartin/refindery) instance
+(personal reading-history search). It is organized as a strict modular monolith
+with hexagonal boundaries per capability, built on the start-ui-web minimal
+boilerplate. UI primitives and shared technical utilities live under
+`src/platform`; app-owned shell/support resources live under `src/app`; the
+single business capability lives in `src/modules/refindery` (plus the
+cross-cutting `kernel` module); production wiring lives under `src/composition`.
 
 ## Canonical Commands
 
@@ -13,16 +17,16 @@ Use these commands instead of invoking underlying tools directly.
 
 | Command | Purpose |
 |---|---|
-| `pnpm dev` | Start the local dev server. |
-| `pnpm check` | Static checks: format, lint, typecheck, depcruise, semgrep, audit. |
+| `pnpm dev` | Start the local dev server (proxies the refindery API). |
+| `pnpm check` | Static checks: format, lint, typecheck, depcruise, gen:api:check, semgrep, audit. |
 | `pnpm test` | Vitest unit and browser projects. |
 | `pnpm test:affected:list` | List tests associated with changed files. |
 | `pnpm test:affected` | Run tests associated with changed files. |
+| `pnpm test:mutation` | Stryker mutation testing (runtime-config, kernel, shared, refindery scopes). |
 | `pnpm test:e2e:visual` | Local Chromium visual regression check for stable critical screens. |
-| `pnpm test:e2e:visual:auth` | Local Chromium visual regression check for login and verification screens. |
-| `pnpm test:e2e:visual:app-shell` | Local Chromium visual regression check for the authenticated app shell. |
-| `pnpm test:e2e:visual:manager-users` | Local Chromium visual regression check for manager user screens. |
 | `pnpm test:e2e:visual:update` | Update local visual baselines for review. |
+| `pnpm gen:api` | Refresh the OpenAPI snapshot + generated API types from a running refindery. |
+| `pnpm gen:api:check` | Fail if `api.gen.ts` is stale relative to the committed spec (CI-safe, no network). |
 | `pnpm build` | Production build. |
 | `pnpm verify` | Full pre-merge gate: `check` + `test` + `build`. |
 | `pnpm verify:task` | Task-level verification runner with timestamped logs under `test-results/task-verification/`. |
@@ -35,16 +39,13 @@ After code changes, run `pnpm format:changed && pnpm check && pnpm test:affected
 Use a layered verification loop rather than relying on one broad command.
 
 - Start with the narrowest relevant unit, browser, or E2E checks for the behavior being changed.
-- For UI changes, start the local app with `pnpm dev` or the E2E webserver path, inspect the affected flow in the Codex in-app Browser, and check desktop and mobile viewports for console errors, broken interactions, text overflow, and layout overlap.
+- For UI changes, start the local app with `pnpm dev` (ideally against a running refindery at `VITE_REFINDERY_TARGET`), inspect the affected lens, and check desktop and mobile viewports for console errors, broken interactions, text overflow, and layout overlap.
 - Capture screenshots or Playwright artifacts for meaningful UI changes. Prefer local Playwright screenshots for visual regression with `pnpm test:e2e:visual`; update baselines for review with `pnpm test:e2e:visual:update`. Do not add Percy, Applitools, Cypress, BrowserStack, or another external visual/browser service unless explicitly requested.
 - After code changes, run `pnpm format:changed && pnpm check && pnpm test:affected`.
-- Use `pnpm verify:task` when a single command/report is more useful than separate commands. Add `-- --visual` for UI changes, `-- --e2e-chromium` for auth/routing/session/persistence risk, and `-- --build` for production runtime risk.
-- Escalate to `pnpm test:e2e --project=chromium` when auth, routing, session, persistence, upload, or full-stack behavior is touched.
-- Escalate to all Playwright projects or the CI matrix when a change is likely to vary by browser.
+- Use `pnpm verify:task` when a single command/report is more useful than separate commands. Add `-- --visual` for UI changes, `-- --e2e-chromium` for routing/token risk, and `-- --build` for production runtime risk.
+- Escalate to `pnpm test:e2e --project=chromium` when routing, token handling, or full-stack behavior is touched.
 - Run `pnpm build` for production build/runtime changes, and `pnpm verify` before merge-level handoff.
-- When tests fail, inspect Playwright traces, screenshots, videos, console output, network evidence, and auth diagnostics before changing code. Treat retries as a diagnostic signal, not proof of correctness.
-
-Local full-stack verification with seeded data, Maildev, MinIO, and the local database is the default realism level for agent work. Production smoke testing is out of scope unless read-only routes, credentials, and data safety rules are explicitly provided.
+- When tests fail, inspect Playwright traces, screenshots, videos, console output, network evidence before changing code. Treat retries as a diagnostic signal, not proof of correctness.
 
 Task verification artifacts should be grouped under `test-results/task-verification/<timestamp>/` when using `pnpm verify:task`. Keep Playwright traces, screenshots, videos, and failure attachments in their default `test-results/` locations and link or summarize the relevant paths in the final handoff. Visual test baselines are reviewed repo artifacts; do not silently update them without saying why.
 
@@ -65,8 +66,7 @@ Do not deep-import another module's `domain/`, `application/`, `infrastructure/`
 
 ## Module Rules
 
-
-`domain/` is pure TypeScript. `application/` depends on ports, not adapters. `infrastructure/` owns SDKs and provider/database adapters. `transport/` maps protocol inputs to use cases. `presentation/` owns React UI, query options, and form schemas.
+`domain/` is pure TypeScript. `application/` depends on ports, not adapters. `infrastructure/` owns SDKs and provider adapters. `transport/` maps protocol inputs to use cases. `presentation/` owns React UI, query options, and form schemas.
 
 Keep route and transport handlers thin: validate and normalize input, call the relevant public module gate or use case, then map tagged outcomes or `AppError` values to the framework response.
 
@@ -74,24 +74,91 @@ Parse external input once at the boundary with the appropriate schema mechanism:
 
 Business and application time must come from an injected `Clock` port. Direct `new Date()` calls belong only in clock adapters, schema/database defaults, tests, scripts, and external/framework boundary mapping.
 
-Keep files named by concrete concern. Avoid catch-all `utils.ts`, broad `service.ts`, or multi-purpose files; prefer scoped names such as `query-helpers.ts`, `cache-control.ts`, or `book-repository-drizzle.ts`.
+Keep files named by concrete concern. Avoid catch-all `utils.ts`, broad `service.ts`, or multi-purpose files; prefer scoped names such as `query-keys.ts`, `token-store.ts`, or `search-history-store.ts`.
+
+## The refindery Module
+
+The cockpit's single capability, `src/modules/refindery`. Orientation map:
+
+- **Lens model.** Each operator screen is a "lens" under
+  `presentation/lenses/*` (Pulse `/`, Jobs, Search Lab, Clusters, Entities,
+  Models, Pages, System, Settings), exported only via `presentation.ts` and
+  mounted by thin routes in `src/routes/_shell/*`. The shell
+  (`presentation/shell/`) owns nav (`nav-items.ts`), alert badges
+  (`use-alerts.ts`), and the ⌘K command palette (`command-palette.tsx`).
+- **Deep-linkable lens state.** Search-Lab state and the Jobs status filter
+  live in URL search params: zod schemas in
+  `presentation/lenses/*/{search-lab,jobs}-search.ts` plug directly into the
+  routes' `validateSearch`; lenses read them via `getRouteApi('/_shell/…')`.
+  Search Lab auto-runs whenever the URL carries a new runnable query — one
+  mechanism serves direct runs, deep links, history replay, and the palette.
+- **DI via context.** Presentation never imports its own infrastructure.
+  `RefinderyClientProvider` injects `{ api, tokenStore, searchHistory }`
+  (wired in `src/composition/providers.tsx`); hooks come from
+  `presentation/refindery-client-context.ts`.
+- **Token store.** `infrastructure/token-store.ts` — one bearer token in
+  `localStorage` (`refindery.token`, plaintext by design for localhost),
+  read reactively via `useSyncExternalStore` (`presentation/use-token.ts`)
+  and synchronously at request time (`peek()`). Server snapshot is always
+  `null`. Switching tokens calls `queryClient.removeQueries({ queryKey:
+  refineryKeys.all })` so no cached data crosses identities.
+  `infrastructure/search-history-store.ts` follows the same pattern for
+  recent Search-Lab runs (`refindery.search-history`, capped, deduped).
+- **HTTP client + errors.** `infrastructure/http-client.ts` calls same-origin
+  relative paths (dev proxy / prod mount handle routing) and normalizes every
+  failure into `ApiError` (`domain/errors.ts`). Kinds include the overloaded
+  403 `blacklisted` case, `network` (status 0), and `contract` — a 2xx body
+  that failed its response schema (see below).
+- **Generated API contract.** `domain/openapi.json` is the committed spec
+  snapshot; `domain/api.gen.ts` is generated from it (`pnpm gen:api`,
+  freshness gated by `pnpm gen:api:check`). Wire (`Raw*`) types in
+  `infrastructure/api.ts` alias the generated schemas so backend renames
+  break the build; curated domain types in `domain/api-types.ts` alias the
+  wire where 1:1 and stay hand-written where they deliberately diverge
+  (`Cluster.cluster_id` vs wire `id`, flattened statuses). High-blast-radius
+  responses (whoami, jobs, mutation-driving reads) are validated at runtime
+  with zod (`infrastructure/schemas.ts`, each `satisfies z.ZodType<wire>`);
+  failures surface as `contract` errors and write-gating fails closed.
+- **Alerts/canaries.** Pure domain rules: `domain/canaries.ts`
+  (`deriveCanaryInput` — maps `/metrics` samples + the job list onto canary
+  inputs; metric names are pinned by unit tests so a backend rename fails
+  loudly) and `domain/thresholds.ts` (`deriveAlerts`,
+  `TOMBSTONE_BACKLOG_WARN=100`, `EMBEDDING_ERROR_WARN=1`; dead jobs are the
+  only `critical`). `purgedPageHits` is computed but has no alert rule
+  (documented open question).
+- **Polling cadences.** `presentation/query-keys.ts` `POLL`: fast 2s (jobs,
+  backfill progress), medium 5s (ready, metrics), slow 30s (models, clusters,
+  config). All reads gate on token presence and `isBrowser`, `retry: false`.
+  React Query's default `refetchIntervalInBackground: false` pauses polling
+  in blurred windows — do not override it. Prometheus text is parsed once via
+  `presentation/use-parsed-metrics.ts` (module-scope `select`); do not call
+  `parsePrometheus` per-consumer.
+- **Write gating.** `presentation/components/write-gate.tsx` disables mutating
+  controls without the `write` scope via a native `<fieldset disabled>` plus
+  pointer-events guards for links, with an explanatory tooltip.
+- **Test seams.** Extend `testing.ts` when tests need owner internals
+  (`createRefineryApi`, `httpClient`, `tokenStore`, stores, search schemas,
+  palette helpers). Browser tests fake `RefineryHttpClient` and wrap in
+  `RefinderyClientProvider`; lenses that use `getRouteApi` need a memory
+  router mirroring the `/_shell/*` route ids (see
+  `tests/browser/modules/refindery/`). No MSW.
+- **i18n decision.** Refindery lens copy is hardcoded English by team
+  decision; platform i18n (en/fr/ar/sw) remains for shell/platform
+  components. Do not add lens translation keys.
 
 ## Result and Outcome Policy
 
-- Expected business outcomes must be domain-tagged `Result.Ok` variants from `@bloodyowl/boxed`, such as `{ type: 'book_found'; book: Book }` or `{ type: 'book_not_found' }`.
-- Internal, external-service, system, and persistence failures must be `Result.Error(AppError)`.
+- Expected business outcomes must be domain-tagged `Result.Ok` variants from `@bloodyowl/boxed`; internal, external-service, system, and persistence failures must be `Result.Error(AppError)`.
 - Use direct Boxed APIs (`Result.Ok`, `Result.Error`, `isOk`, `isError`, `get`, `getError`) instead of local `ok` / `fail` wrappers.
 - Use `ts-pattern` with Boxed interop (`Result.P.Ok(...)` and `Result.P.Error(...)`) for exhaustive result handling at mapping boundaries.
-- Do not return nullable or boolean business outcomes from app-owned ports; model those branches as tagged outcomes.
-- Do not throw or catch for normal app-owned business flow. Code under `src/modules/*/application/**` should return `Result.Ok(...)` for expected outcomes and `Result.Error(AppError)` for failures.
-- Catch failures only at external, service, and persistence boundaries such as Drizzle, Better Auth, and Resend adapters. Keep `TransactionRunner.run` as the low-level promise primitive and map transaction failures at the DB-backed boundary or use case boundary that owns the transaction. Any application-layer `try/catch` must be limited to a use case that owns a transaction boundary and must convert the failure to `Result.Error(AppError)`.
-- Transport, composition, HTTP, and framework adapter boundaries may throw only when the underlying contract is exception-driven, such as TanStack `ServerFnError`, Better Upload `RejectUpload`, Better Auth callbacks, startup/config validation, or final HTTP error mapping.
+- Do not return nullable or boolean business outcomes from app-owned ports; model those branches as tagged outcomes (e.g. refindery's `IngestOutcome`).
+- Do not throw or catch for normal app-owned business flow. Catch failures only at external-service boundaries — in this repo, the refindery HTTP adapter, which normalizes failures into `ApiError` values that React Query surfaces to the lenses.
+- Transport, composition, HTTP, and framework adapter boundaries may throw only when the underlying contract is exception-driven (TanStack `ServerFnError`, startup/config validation, final HTTP error mapping).
 
 ## Utility Library Guidance
 
 - Use `ts-pattern` when branching over discriminated unions, Boxed `Result` values, tuple-derived UI states, or non-trivial unknown-shape guards where `.exhaustive()` / `isMatching` improves safety. Keep simple one-condition guards as plain `if` checks.
-- Use Remeda for non-trivial production collection and object transforms when it improves readability or type narrowing: `pipe`, data-last `map` / `filter` / `flatMap`, `pickBy`, `mapValues`, `pullObject`, `fromEntries`, typed guards such as `isString` / `isTruthy`, and `unique` / `uniqueBy`.
-- Keep native APIs for straightforward JSX render loops, framework-specific chains such as fast-check arbitraries or Drizzle builders, and simple one-off array operations where Remeda would only add indirection.
+- Use Remeda for non-trivial production collection and object transforms when it improves readability or type narrowing. Keep native APIs for straightforward JSX render loops, framework-specific chains such as fast-check arbitraries, and simple one-off array operations where Remeda would only add indirection.
 
 ## Common Guardrails
 
@@ -101,22 +168,26 @@ Keep files named by concrete concern. Avoid catch-all `utils.ts`, broad `service
 - Module internals must not import `@/composition`; dependencies are injected through factories or public server barrels.
 - Routes import modules only through `index.ts`, `server.ts`, `backend.ts`, `client.ts`, or `presentation.ts`.
 - `src/modules/*/presentation/schema.ts` must emit static error keys, not import `i18next` or `react-i18next`; `src/platform/components/form/form-field-error.tsx` translates at render time.
-- Better Auth server APIs are confined to `src/modules/auth` and `src/composition/auth.ts`.
-- Provider-specific auth tokens stay server-side and do not cross client/public boundaries.
 - Legacy roots `src/components`, `src/hooks`, `src/lib`, `src/layout`, `src/features`, and `src/emails` are forbidden; use `src/platform` or `src/modules/<capability>`.
-- Route loaders that read search params must declare `validateSearch` and `loaderDeps`, and query keys must include the same normalized values.
-- Existing SQL migration files under `drizzle/migrations` are immutable. Change Drizzle schema files and run `pnpm db:generate` for new migrations; run `pnpm check:migrations` when migration or schema files are touched.
+- Route loaders that read search params must declare `validateSearch` and `loaderDeps`, and query keys must include the same normalized values. (The refindery lens routes declare `validateSearch`; no loaders read search today.)
+- `src/modules/refindery/domain/api.gen.ts` and `openapi.json` are generated artifacts — never hand-edit; run `pnpm gen:api`.
 
-## Auth Boundary
+## Upstream starter patterns (not active in this repo)
 
-Auth is provider-neutral above infrastructure. Application code depends on focused ports:
+The start-ui-web starter this repo is built on ships auth, persistence, and
+email adapters that have been removed here. The patterns remain the reference
+if those capabilities are reintroduced:
 
-- `SessionGateway`
-- `AuthorizationGateway`
-- `AuthEmailPort`
-- `UserAdminGateway`
-
-Better Auth is the current adapter under `src/modules/auth/infrastructure/better-auth`. A future provider should implement the same ports and be selected in `src/composition/auth.ts`.
+- **Auth boundary**: application code depends on focused ports
+  (`SessionGateway`, `AuthorizationGateway`, `AuthEmailPort`,
+  `UserAdminGateway`); Better Auth is the reference adapter under
+  `src/modules/auth/infrastructure/better-auth`, selected in
+  `src/composition/auth.ts`. Better Auth imports stay confined to those
+  locations; provider-specific auth tokens stay server-side.
+- **Persistence**: Drizzle stays in infrastructure/kernel-infrastructure/
+  composition; SQL migration files are immutable once committed; prefer
+  integration tests against the real driver for repository/SQL changes.
+- **Email**: Resend confined to its adapter module.
 
 ## Tests
 
@@ -131,6 +202,9 @@ Use the cheapest test that proves the behavior:
 | E2E | `tests/e2e/*.spec.ts` |
 | Fixtures/support | `tests/support`, `tests/server`, nearest `*.fixture.tsx` when useful |
 
-When a regression class is likely to repeat, add a guardrail through depcruise, Semgrep, or an architecture test.
+Property-based tests import `fc`/`test`/`PROPERTY_DEFAULTS` from
+`@tests/support/property-testing` (never `@fast-check/vitest` directly) and use
+the `.unit.spec.ts` suffix. The refindery domain is covered by a Stryker scope
+(`pnpm test:mutation:refindery`).
 
-When touching Drizzle repositories, raw `sql`, `db.execute`, schema serialization, or migrations, prefer an integration test against the local database driver in addition to focused unit coverage. Mocked DB unit tests do not prove SQL serialization or migration behavior.
+When a regression class is likely to repeat, add a guardrail through depcruise, Semgrep, or an architecture test.

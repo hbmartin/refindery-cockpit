@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/platform/components/ui/button';
-import { Input } from '@/platform/components/ui/input';
+import { NumberInput } from '@/platform/components/ui/number-input';
 
-import { errorMessage, refineryApi } from '../../../client';
 import type { LoggedRun, ScoreReport } from '../../../index';
 import { Column, DataTable } from '../../components/data-table';
 import { LensSection } from '../../components/lens';
 import { QueryBoundary } from '../../components/query-boundary';
-import { useQueryLog } from '../../hooks';
+import { errorMessage, useQueryLog } from '../../hooks';
+import { useRefinderyApi } from '../../refindery-client-context';
 
 const num = (v: number | undefined) => (v === undefined ? '—' : v.toFixed(3));
 
@@ -57,9 +57,10 @@ function QueryLogExplorer() {
 }
 
 function ScoreRunner() {
-  const [k, setK] = useState(10);
+  const refineryApi = useRefinderyApi();
+  const [k, setK] = useState<number | null>(10);
   const score = useMutation<ScoreReport, unknown, void>({
-    mutationFn: () => refineryApi.evalScore({ k }),
+    mutationFn: () => refineryApi.evalScore({ k: k ?? 10 }),
     onError: (e) => toast.error(errorMessage(e)),
   });
 
@@ -68,11 +69,13 @@ function ScoreRunner() {
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-1 text-xs text-muted-foreground">
           k
-          <Input
-            type="number"
+          <NumberInput
+            size="sm"
+            min={1}
+            step={1}
             value={k}
-            onChange={(e) => setK(Number(e.target.value) || 10)}
-            className="h-7 w-16"
+            onValueChange={(value) => setK(value)}
+            className="w-16"
           />
         </label>
         <Button

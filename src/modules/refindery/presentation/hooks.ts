@@ -1,3 +1,4 @@
+/* oxlint-disable @tanstack/query/exhaustive-deps -- the composed API is a stable process dependency, not query identity */
 /**
  * Typed React Query hooks — one per refindery resource. Read hooks gate on a
  * present token and poll at the cadence the plan prescribes; mutation hooks
@@ -13,9 +14,9 @@ import {
 import { toast } from 'sonner';
 
 import { POLL, refineryKeys } from './query-keys';
+import { useRefinderyApi } from './refindery-client-context';
 import { useHasToken } from './use-token';
 import { isApiError } from '../domain/errors';
-import { refineryApi } from '../infrastructure/api';
 
 /** Queries are client-only: refindery is reached from the browser with the
  * stored token, so nothing should fetch during SSR (it would block dehydration). */
@@ -31,6 +32,7 @@ const errorMessage = (error: unknown): string =>
 // --- Reads -----------------------------------------------------------------
 
 export function useWhoAmI() {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -50,6 +52,7 @@ export function useCanWrite(): boolean {
 }
 
 export function useReady() {
+  const refineryApi = useRefinderyApi();
   return useQuery(
     queryOptions({
       queryKey: refineryKeys.ready(),
@@ -61,17 +64,22 @@ export function useReady() {
   );
 }
 
-export function useMetricsText() {
+/** Shared options for the `/metrics` text query so `useMetricsText` and
+ * `useParsedMetrics` observe the same cache entry at the same cadence. */
+export function useMetricsTextQueryOptions() {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
-  return useQuery(
-    queryOptions({
-      queryKey: refineryKeys.metricsText(),
-      queryFn: () => refineryApi.metricsText(),
-      enabled,
-      refetchInterval: POLL.medium,
-      retry: false,
-    })
-  );
+  return queryOptions({
+    queryKey: refineryKeys.metricsText(),
+    queryFn: () => refineryApi.metricsText(),
+    enabled,
+    refetchInterval: POLL.medium,
+    retry: false,
+  });
+}
+
+export function useMetricsText() {
+  return useQuery(useMetricsTextQueryOptions());
 }
 
 export function useMetricsSeries(
@@ -79,6 +87,7 @@ export function useMetricsSeries(
   since?: string,
   step?: string
 ) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -96,6 +105,7 @@ export function useJobs(params?: {
   kind?: string;
   limit?: number;
 }) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -109,6 +119,7 @@ export function useJobs(params?: {
 }
 
 export function useClusters(includeTombstoned?: boolean) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -122,6 +133,7 @@ export function useClusters(includeTombstoned?: boolean) {
 }
 
 export function useClusterRuns() {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -135,6 +147,7 @@ export function useClusterRuns() {
 }
 
 export function useProjection(runId?: string) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -148,6 +161,7 @@ export function useProjection(runId?: string) {
 }
 
 export function useEntity(ref: string | undefined) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser && !!ref;
   return useQuery(
     queryOptions({
@@ -160,6 +174,7 @@ export function useEntity(ref: string | undefined) {
 }
 
 export function useModels() {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -173,6 +188,7 @@ export function useModels() {
 }
 
 export function useBackfillProgress(id: string | undefined, polling: boolean) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser && !!id;
   return useQuery(
     queryOptions({
@@ -190,6 +206,7 @@ export function useQueryLog(params?: {
   limit?: number;
   kind?: string;
 }) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -203,6 +220,7 @@ export function useQueryLog(params?: {
 }
 
 export function useQueryLogDetail(id: string | undefined) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser && !!id;
   return useQuery(
     queryOptions({
@@ -215,6 +233,7 @@ export function useQueryLogDetail(id: string | undefined) {
 }
 
 export function useConfig() {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -228,6 +247,7 @@ export function useConfig() {
 }
 
 export function useMcp() {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -241,6 +261,7 @@ export function useMcp() {
 }
 
 export function useBlacklist() {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser;
   return useQuery(
     queryOptions({
@@ -254,6 +275,7 @@ export function useBlacklist() {
 }
 
 export function usePage(id: string | undefined) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser && !!id;
   return useQuery(
     queryOptions({
@@ -266,6 +288,7 @@ export function usePage(id: string | undefined) {
 }
 
 export function usePageChunks(id: string | undefined) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser && !!id;
   return useQuery(
     queryOptions({
@@ -278,6 +301,7 @@ export function usePageChunks(id: string | undefined) {
 }
 
 export function usePageEntities(id: string | undefined) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser && !!id;
   return useQuery(
     queryOptions({
@@ -290,10 +314,11 @@ export function usePageEntities(id: string | undefined) {
 }
 
 export function useSimilar(id: string | undefined, mediation?: string) {
+  const refineryApi = useRefinderyApi();
   const enabled = useHasToken() && isBrowser && !!id;
   return useQuery(
     queryOptions({
-      queryKey: [...refineryKeys.similar(id ?? ''), mediation ?? 'vector'],
+      queryKey: refineryKeys.similar(id ?? '', mediation),
       queryFn: () => refineryApi.getSimilar(id as string, mediation),
       enabled,
       retry: false,

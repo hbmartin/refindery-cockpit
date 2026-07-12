@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { cn } from '@/platform/lib/tailwind/utils';
 
-import type { Alert } from '../../../client';
+import type { Alert } from '../../../domain/thresholds';
 
 /** Dismissible, threshold-driven banner aggregating the canary alerts. */
 export function AlertBanner({ alerts }: { alerts: Alert[] }) {

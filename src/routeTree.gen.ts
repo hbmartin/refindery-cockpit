@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PingRouteImport } from './routes/ping'
 import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as ShellIndexRouteImport } from './routes/_shell/index'
 import { Route as ShellSystemRouteImport } from './routes/_shell/system'
@@ -26,11 +25,6 @@ import { Route as ShellPagesPageIdRouteImport } from './routes/_shell/pages/$pag
 import { Route as ApiTelemetryOtelV1TracesRouteImport } from './routes/api/telemetry.otel.v1.traces'
 import { Route as ApiTelemetryOtelV1MetricsRouteImport } from './routes/api/telemetry.otel.v1.metrics'
 
-const PingRoute = PingRouteImport.update({
-  id: '/ping',
-  path: '/ping',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ShellRoute = ShellRouteImport.update({
   id: '/_shell',
   getParentRoute: () => rootRouteImport,
@@ -111,7 +105,6 @@ const ApiTelemetryOtelV1MetricsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof ShellIndexRoute
-  '/ping': typeof PingRoute
   '/clusters': typeof ShellClustersRoute
   '/entities': typeof ShellEntitiesRoute
   '/jobs': typeof ShellJobsRoute
@@ -127,7 +120,6 @@ export interface FileRoutesByFullPath {
   '/api/telemetry/otel/v1/traces': typeof ApiTelemetryOtelV1TracesRoute
 }
 export interface FileRoutesByTo {
-  '/ping': typeof PingRoute
   '/clusters': typeof ShellClustersRoute
   '/entities': typeof ShellEntitiesRoute
   '/jobs': typeof ShellJobsRoute
@@ -146,7 +138,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_shell': typeof ShellRouteWithChildren
-  '/ping': typeof PingRoute
   '/_shell/clusters': typeof ShellClustersRoute
   '/_shell/entities': typeof ShellEntitiesRoute
   '/_shell/jobs': typeof ShellJobsRoute
@@ -166,7 +157,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/ping'
     | '/clusters'
     | '/entities'
     | '/jobs'
@@ -182,7 +172,6 @@ export interface FileRouteTypes {
     | '/api/telemetry/otel/v1/traces'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/ping'
     | '/clusters'
     | '/entities'
     | '/jobs'
@@ -200,7 +189,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_shell'
-    | '/ping'
     | '/_shell/clusters'
     | '/_shell/entities'
     | '/_shell/jobs'
@@ -219,7 +207,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ShellRoute: typeof ShellRouteWithChildren
-  PingRoute: typeof PingRoute
   ApiTelemetryLogsRoute: typeof ApiTelemetryLogsRoute
   ApiTelemetrySentryTunnelRoute: typeof ApiTelemetrySentryTunnelRoute
   ApiTelemetryOtelV1MetricsRoute: typeof ApiTelemetryOtelV1MetricsRoute
@@ -228,13 +215,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/ping': {
-      id: '/ping'
-      path: '/ping'
-      fullPath: '/ping'
-      preLoaderRoute: typeof PingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_shell': {
       id: '/_shell'
       path: ''
@@ -373,7 +353,6 @@ const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   ShellRoute: ShellRouteWithChildren,
-  PingRoute: PingRoute,
   ApiTelemetryLogsRoute: ApiTelemetryLogsRoute,
   ApiTelemetrySentryTunnelRoute: ApiTelemetrySentryTunnelRoute,
   ApiTelemetryOtelV1MetricsRoute: ApiTelemetryOtelV1MetricsRoute,

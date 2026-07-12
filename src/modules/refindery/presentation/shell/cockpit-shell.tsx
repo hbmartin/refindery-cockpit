@@ -22,6 +22,7 @@ import {
 import { ThemeSwitcher } from '@/platform/components/ui/theme-switcher';
 
 import { ClientOnly } from './client-only';
+import { CommandPalette } from './command-palette';
 import { HealthDot } from './health-dot';
 import { NAV_ITEMS } from './nav-items';
 import { TokenIdentity } from './token-identity';
@@ -115,6 +116,7 @@ function CockpitShellInner({ children }: { children: ReactNode }) {
           <SidebarTrigger />
           <HealthDot />
           <div className="ml-auto flex items-center gap-3">
+            <CommandPalette />
             <TokenIdentity />
             <ThemeSwitcher iconOnly />
           </div>

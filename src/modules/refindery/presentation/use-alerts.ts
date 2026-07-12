@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 
-import { useJobs, useMetricsText } from './hooks';
-import { type Alert, deriveAlerts, gauge, parsePrometheus } from '../client';
+import { useJobs } from './hooks';
+import { useParsedMetrics } from './use-parsed-metrics';
+import { deriveCanaryInput } from '../domain/canaries';
+import { type Alert, deriveAlerts } from '../domain/thresholds';
+
+const NO_METRICS = { samples: [] };
 
 /**
  * Derives the in-app alert set from live signals: dead-letter jobs plus the
@@ -13,42 +17,12 @@ export function useCockpitAlerts(): {
   byLens: Map<string, Alert[]>;
 } {
   const jobs = useJobs();
-  const metrics = useMetricsText();
+  const metrics = useParsedMetrics();
 
   return useMemo(() => {
-    const deadJobs = (jobs.data ?? []).filter(
-      (job) => job.status === 'dead'
-    ).length;
-
-    let tombstoneBacklog = 0;
-    let queryLogDropped = 0;
-    let purgedPageHits = 0;
-    let embeddingErrors = 0;
-
-    if (metrics.data) {
-      const parsed = parsePrometheus(metrics.data);
-      tombstoneBacklog =
-        parsed.samples
-          .filter(
-            (s) =>
-              s.name === 'vector_tombstone_backlog' &&
-              s.labels.status === 'pending'
-          )
-          .reduce((sum, s) => sum + s.value, 0) || 0;
-      queryLogDropped = gauge(parsed, 'query_log_dropped_total') ?? 0;
-      purgedPageHits = gauge(parsed, 'purged_page_hits_total') ?? 0;
-      embeddingErrors = parsed.samples
-        .filter((s) => s.name === 'embedding_api_errors_total')
-        .reduce((sum, s) => sum + s.value, 0);
-    }
-
-    const alerts = deriveAlerts({
-      deadJobs,
-      tombstoneBacklog,
-      queryLogDropped,
-      purgedPageHits,
-      embeddingErrors,
-    });
+    const alerts = deriveAlerts(
+      deriveCanaryInput(metrics.data ?? NO_METRICS, jobs.data ?? [])
+    );
 
     const byLens = new Map<string, Alert[]>();
     for (const alert of alerts) {

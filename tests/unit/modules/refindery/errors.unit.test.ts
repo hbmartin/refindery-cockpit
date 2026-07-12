@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveAlerts, parseApiError } from '@/modules/refindery';
+import {
+  contractError,
+  deriveAlerts,
+  isApiError,
+  parseApiError,
+} from '@/modules/refindery';
 
 describe('parseApiError', () => {
   it('handles a string detail (scope error)', () => {
@@ -38,7 +43,77 @@ describe('parseApiError', () => {
   it('handles a readyz-style status body', () => {
     const error = parseApiError(503, { status: 'starting' });
     expect(error.kind).toBe('unavailable');
-    expect(error.message).toContain('starting');
+    expect(error.message).toBe('Status: starting');
+  });
+
+  it('maps the remaining status codes to their kinds', () => {
+    expect(parseApiError(404, { detail: 'nope' }).kind).toBe('not_found');
+    expect(parseApiError(409, { detail: 'busy' }).kind).toBe('conflict');
+    expect(parseApiError(500, { detail: 'oops' }).kind).toBe('http');
+  });
+
+  it('formats the blacklisted message around the pattern', () => {
+    expect(
+      parseApiError(403, { error: 'blacklisted', pattern: 'example.com' })
+        .message
+    ).toBe('Blocked by blacklist pattern "example.com"');
+  });
+
+  it('falls back to forbidden when a blacklist body has no pattern', () => {
+    expect(parseApiError(403, { error: 'blacklisted' }).kind).toBe('forbidden');
+  });
+
+  it('upgrades validation arrays on unknown statuses to unprocessable', () => {
+    const error = parseApiError(400, {
+      detail: [{ loc: ['query'], msg: 'bad' }],
+    });
+    expect(error.kind).toBe('unprocessable');
+    expect(error.message).toBe('bad');
+  });
+
+  it('defaults message and path for sparse validation items', () => {
+    const error = parseApiError(422, { detail: [{}] });
+    expect(error.message).toBe('Invalid value');
+    expect(error.fields).toEqual([{ path: '', message: 'Invalid value' }]);
+  });
+
+  it('reports "Validation failed" for an empty validation array', () => {
+    expect(parseApiError(422, { detail: [] }).message).toBe(
+      'Validation failed'
+    );
+  });
+
+  it('falls back to the raw string body, then to HTTP <status>', () => {
+    expect(parseApiError(500, 'went sideways').message).toBe('went sideways');
+    expect(parseApiError(500, '').message).toBe('HTTP 500');
+    expect(parseApiError(502, undefined).message).toBe('HTTP 502');
+  });
+});
+
+describe('isApiError', () => {
+  it('accepts parsed and constructed ApiErrors', () => {
+    expect(isApiError(parseApiError(404, { detail: 'x' }))).toBe(true);
+    expect(isApiError(contractError('drift'))).toBe(true);
+  });
+
+  it('rejects non-ApiError values', () => {
+    expect(isApiError(new Error('x'))).toBe(false);
+    expect(isApiError(null)).toBe(false);
+    expect(isApiError({ kind: 1, status: 'x', message: 2 })).toBe(false);
+  });
+});
+
+describe('contractError', () => {
+  it('builds a contract-kind ApiError carrying field issues', () => {
+    const error = contractError('Unexpected response shape from GET /v1/jobs', [
+      { path: 'jobs.0.attempts', message: 'Expected number' },
+    ]);
+    expect(isApiError(error)).toBe(true);
+    expect(error).toMatchObject({
+      kind: 'contract',
+      status: 0,
+      fields: [{ path: 'jobs.0.attempts', message: 'Expected number' }],
+    });
   });
 });
 

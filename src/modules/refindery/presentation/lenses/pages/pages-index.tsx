@@ -15,10 +15,11 @@ import {
 import { Input } from '@/platform/components/ui/input';
 import { Textarea } from '@/platform/components/ui/textarea';
 
-import { errorMessage, refineryApi } from '../../../client';
 import type { IngestOutcome } from '../../../index';
 import { LensHeader, LensPage } from '../../components/lens';
 import { WriteGate } from '../../components/write-gate';
+import { errorMessage } from '../../hooks';
+import { useRefinderyApi } from '../../refindery-client-context';
 
 function LookupCard() {
   const navigate = useNavigate();
@@ -59,6 +60,7 @@ function LookupCard() {
 }
 
 function IngestCard() {
+  const refineryApi = useRefinderyApi();
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');

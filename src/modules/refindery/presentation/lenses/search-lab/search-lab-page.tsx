@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { getRouteApi } from '@tanstack/react-router';
 
 import { CompareTab } from './compare-tab';
 import { EvalTab } from './eval-tab';
+import type { SearchLabSearch } from './search-lab-search';
 import { SearchTab } from './search-tab';
 import { LensHeader, LensPage } from '../../components/lens';
 import { Segmented } from '../../components/segmented';
 
-type Tab = 'search' | 'compare' | 'eval';
+const route = getRouteApi('/_shell/search');
+
+type Tab = SearchLabSearch['tab'];
 
 export function SearchLabPage() {
-  const [tab, setTab] = useState<Tab>('search');
+  const { tab } = route.useSearch();
+  const navigate = route.useNavigate();
 
   return (
     <LensPage>
@@ -19,7 +23,12 @@ export function SearchLabPage() {
         actions={
           <Segmented<Tab>
             value={tab}
-            onChange={setTab}
+            onChange={(next) =>
+              navigate({
+                search: (prev) => ({ ...prev, tab: next }),
+                replace: true,
+              })
+            }
             options={[
               { value: 'search', label: 'Search' },
               { value: 'compare', label: 'Compare' },

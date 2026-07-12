@@ -1,14 +1,17 @@
 /**
- * Hand-modeled types for the refindery HTTP API.
+ * Curated public types for the refindery HTTP API.
  *
- * The cockpit plan calls for generating these from a running refindery's
- * `GET /openapi.json` via `pnpm gen:api` (openapi-typescript). Until an instance
- * is reachable at build time, these mirror the documented HTTP API
- * (https://hbmartin.github.io/refindery/reference/http-api/) and the field names
- * referenced in the cockpit planning doc. Regenerate to replace this file once a
- * refindery instance is available; the query hooks depend only on the exported
- * names here, so swapping in generated types is a localized change.
+ * Types that match the wire 1:1 are aliases into `api.gen.ts` (generated from
+ * the committed `openapi.json` snapshot via `pnpm gen:api`; freshness enforced
+ * by `pnpm gen:api:check`), so backend renames break the build here. Types that
+ * deliberately diverge from the wire (`Cluster.cluster_id` vs wire `id`,
+ * flattened statuses, lowest-common-denominator `PageResult`) stay hand-curated
+ * and are anchored on the Raw side in `infrastructure/api.ts` instead.
  */
+import type { components } from './api.gen';
+
+type Schema<Name extends keyof components['schemas']> =
+  components['schemas'][Name];
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -16,10 +19,8 @@
 
 export type TokenScope = 'read' | 'write';
 
-export type WhoAmI = {
-  name: string;
-  scopes: TokenScope[];
-};
+/** Wire `scopes` stays `string[]`: unknown scopes must not fail validation. */
+export type WhoAmI = Schema<'WhoAmIResponse'>;
 
 // ---------------------------------------------------------------------------
 // Health
@@ -38,7 +39,7 @@ export type ReadyStatus = {
 // Pages
 // ---------------------------------------------------------------------------
 
-export type PageState = 'queued' | 'indexing' | 'indexed' | 'failed' | 'dead';
+export type PageState = Schema<'PageStatus'>;
 
 export type PageStatus = {
   page_id: string;
@@ -76,24 +77,9 @@ export type IngestOutcome =
 // Search / Compare
 // ---------------------------------------------------------------------------
 
-export type SearchFilters = {
-  domain?: string;
-  after?: string;
-  before?: string;
-  cluster_id?: string;
-  entity_id?: string;
-};
+export type SearchFilters = Schema<'SearchFiltersBody'>;
 
-export type SearchRequest = {
-  query: string;
-  k?: number;
-  candidates?: number;
-  rerank?: boolean;
-  chunks_per_page?: number;
-  rollup?: 'max' | 'mean' | 'sum';
-  recency_half_life_days?: number | null;
-  filters?: SearchFilters;
-};
+export type SearchRequest = Schema<'SearchRequest'>;
 
 export type MatchedChunk = {
   chunk_id: string;
@@ -130,20 +116,9 @@ export type SearchResponse = {
   timing_ms?: StageTiming;
 };
 
-export type CompareRequest = {
-  query: string;
-  models: string[];
-  k?: number;
-};
+export type CompareRequest = Schema<'CompareRequest'>;
 
-export type AgreementStats = {
-  model_a: string;
-  model_b: string;
-  jaccard_at_k?: number;
-  rbo?: number;
-  kendall_tau?: number;
-  intersection_size?: number;
-};
+export type AgreementStats = Schema<'CompareAgreement'>;
 
 export type CompareResponse = {
   query_id: string;
@@ -151,30 +126,17 @@ export type CompareResponse = {
   agreement: AgreementStats[];
 };
 
-export type Feedback = {
-  query_id: string;
-  page_id: string;
-  relevant: boolean;
-};
+export type Feedback = Schema<'FeedbackRequest'>;
 
 // ---------------------------------------------------------------------------
 // Jobs
 // ---------------------------------------------------------------------------
 
-export type JobStatus = 'pending' | 'running' | 'done' | 'failed' | 'dead';
+export type JobStatus = Schema<'JobStatus'>;
 
 export type JobKind = string;
 
-export type Job = {
-  job_id: string;
-  kind: JobKind;
-  status: JobStatus;
-  attempts: number;
-  max_attempts: number;
-  last_error?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
+export type Job = Schema<'JobResponse'>;
 
 // ---------------------------------------------------------------------------
 // Clusters / Entities
@@ -192,9 +154,9 @@ export type ClusterRun = {
   run_id: string;
   trigger?: string | null;
   algorithm?: string | null;
-  n_pages: number;
-  n_clusters: number;
-  n_noise: number;
+  n_pages: number | null;
+  n_clusters: number | null;
+  n_noise: number | null;
   duration_ms?: number | null;
   created_at?: string | null;
 };
@@ -245,30 +207,19 @@ export type ModelInfo = {
   active: boolean;
 };
 
-export type ModelBackfill = {
-  model_id: string;
-  embedded_chunks: number;
-  total_chunks: number;
-  last_error?: string | null;
-  done?: boolean;
-};
+export type ModelBackfill = Schema<'ModelBackfillResponse'>;
 
-export type BackfillEstimate = {
-  n_chunks: number;
-  total_tokens: number;
-  est_cost_usd: number;
-  est_duration_s: number;
-};
+export type BackfillEstimate = Schema<'BackfillEstimateResponse'>;
+
+export type BackfillStarted = Schema<'BackfillStartedResponse'>;
+
+export type RecomputeResult = Schema<'RecomputeResponse'>;
 
 // ---------------------------------------------------------------------------
 // Eval
 // ---------------------------------------------------------------------------
 
-export type ScoreRequest = {
-  k?: number;
-  since?: string;
-  model?: string;
-};
+export type ScoreRequest = Schema<'EvalScoreRequest'>;
 
 export type ModelScore = {
   model: string;
@@ -295,18 +246,30 @@ export type ReplayRequest = {
   limit?: number;
 };
 
-export type ReplayAccepted = {
-  job_id: string;
-  result_url?: string;
-};
+export type ReplayAccepted = Schema<'EvalReplayAcceptedResponse'>;
 
 export type ReplayReport = {
   job_id: string;
-  status: 'pending' | 'running' | 'done' | 'failed';
-  model_a: string;
-  model_b: string;
-  delta_ndcg?: number;
-  per_query?: { query_id: string; ndcg_a: number; ndcg_b: number }[];
+  status: JobStatus;
+  report?: {
+    k: number;
+    golden_queries: number;
+    arm_a: {
+      label: string;
+      ndcg: number;
+      reciprocal_rank: number;
+      recall: number;
+    };
+    arm_b: {
+      label: string;
+      ndcg: number;
+      reciprocal_rank: number;
+      recall: number;
+    };
+    deltas: Record<string, number>;
+    queries: { query_text: string; ndcg_a: number; ndcg_b: number }[];
+  } | null;
+  error?: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -357,25 +320,13 @@ export type McpMetadata = {
   enable_mutating_tools: boolean;
 };
 
-export type BlacklistEntry = {
-  id: string;
-  pattern: string;
-  created_at?: string | null;
-};
+export type BlacklistEntry = Schema<'BlacklistEntry'>;
 
-export type ForgetResult = {
-  pages_purged: number;
-  vector_deletes_queued: number;
-};
+export type ForgetResult = Schema<'ForgetResponse'>;
 
 /** A downsampled point in a metrics time series. */
-export type MetricSample = {
-  t: string;
-  value: number;
-  labels?: Record<string, string>;
-};
+export type MetricSample = Schema<'MetricPointResponse'>;
 
-export type MetricSeries = {
-  metric: string;
-  points: MetricSample[];
-};
+export type MetricSampleSeries = Schema<'MetricSeriesResponse'>;
+
+export type MetricSeries = Schema<'MetricsTimeseriesResponse'>;

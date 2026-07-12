@@ -51,6 +51,7 @@ export default defineConfig([
       'dist/**',
       'node_modules/**',
       'playwright-report/**',
+      'src/modules/refindery/domain/api.gen.ts',
       'src/platform/components/icons/generated/**',
       'src/routeTree.gen.ts',
       'test-results/**',

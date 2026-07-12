@@ -1,37 +1,78 @@
 import { useMutation } from '@tanstack/react-query';
+import { getRouteApi } from '@tanstack/react-router';
 import { GitCompareIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/platform/components/ui/badge';
 import { Button } from '@/platform/components/ui/button';
 import { Input } from '@/platform/components/ui/input';
 
-import { errorMessage, refineryApi } from '../../../client';
+import { useUrlSyncedDraft } from './use-url-synced-draft';
 import type { CompareRequest, CompareResponse } from '../../../index';
 import { QueryBoundary } from '../../components/query-boundary';
+import { errorMessage } from '../../hooks';
+import { useRefinderyApi } from '../../refindery-client-context';
+import { useHasToken } from '../../use-token';
 
-const pct = (v: number | undefined) => (v === undefined ? '—' : v.toFixed(2));
+const pct = (v: number | null | undefined) => (v == null ? '—' : v.toFixed(2));
+
+const route = getRouteApi('/_shell/search');
+
+const modelList = (models: string): string[] =>
+  models
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
 
 export function CompareTab() {
-  const [query, setQuery] = useState('');
-  const [models, setModels] = useState('');
+  const refineryApi = useRefinderyApi();
+  const params = route.useSearch();
+  const navigate = route.useNavigate();
+  const hasToken = useHasToken();
+
+  // Drafts resync from the URL (deep links, back/forward); run() commits.
+  const [query, setQuery] = useUrlSyncedDraft(params.query);
+  const [models, setModels] = useUrlSyncedDraft(params.models);
 
   const compare = useMutation<CompareResponse, unknown, CompareRequest>({
     mutationFn: (body) => refineryApi.compare(body),
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const lastRun = useRef<string | null>(null);
+  const execute = (nextQuery: string, nextModels: string) => {
+    lastRun.current = JSON.stringify([nextQuery, nextModels]);
+    compare.mutate({ query: nextQuery, models: modelList(nextModels) });
+  };
+
+  // Auto-run a comparison carried by the URL (deep link or tab return).
+  useEffect(() => {
+    if (!hasToken || !params.query.trim()) return;
+    if (modelList(params.models).length < 2) return;
+    if (lastRun.current === JSON.stringify([params.query, params.models])) {
+      return;
+    }
+    execute(params.query, params.models);
+    // Runs key on the URL params; execute/compare identities are per-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasToken, params.query, params.models]);
+
   const run = () => {
-    const list = models
-      .split(',')
-      .map((m) => m.trim())
-      .filter(Boolean);
-    if (!query.trim() || list.length < 2) {
+    const nextQuery = query.trim();
+    const nextModels = modelList(models).join(', ');
+    if (!nextQuery || modelList(nextModels).length < 2) {
       toast.error('Enter a query and at least two model ids');
       return;
     }
-    compare.mutate({ query: query.trim(), models: list });
+    if (lastRun.current === JSON.stringify([nextQuery, nextModels])) {
+      // Same params as the last run: the URL won't change, so re-issue directly.
+      execute(nextQuery, nextModels);
+      return;
+    }
+    void navigate({
+      search: (prev) => ({ ...prev, query: nextQuery, models: nextModels }),
+    });
   };
 
   return (

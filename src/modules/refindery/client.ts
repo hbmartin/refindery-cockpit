@@ -3,9 +3,12 @@
  * bearer-token hooks, query keys/poll cadences, and the error/metrics helpers
  * the lenses need. Presentation imports from here, never from infrastructure.
  */
+export type { RefineryApi } from './application/ports/refinery-api';
+export { deriveCanaryInput } from './domain/canaries';
 export {
   type ApiError,
   type ApiErrorKind,
+  contractError,
   isApiError,
   parseApiError,
 } from './domain/errors';
@@ -21,7 +24,6 @@ export {
   type AlertSeverity,
   deriveAlerts,
 } from './domain/thresholds';
-export { type RefineryApi, refineryApi } from './infrastructure/api';
 export { errorMessage } from './presentation/hooks';
 export { POLL, refineryKeys } from './presentation/query-keys';
-export { setToken, useHasToken, useToken } from './presentation/use-token';
+export { useHasToken, useSetToken, useToken } from './presentation/use-token';

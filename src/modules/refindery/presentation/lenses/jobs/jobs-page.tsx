@@ -1,15 +1,31 @@
+import { getRouteApi } from '@tanstack/react-router';
 import { RotateCwIcon } from 'lucide-react';
 
 import { Button } from '@/platform/components/ui/button';
 
-import { refineryApi, refineryKeys } from '../../../client';
+import { JOB_STATUSES, type JobsSearch } from './jobs-search';
 import type { Job } from '../../../index';
 import { Column, DataTable } from '../../components/data-table';
 import { LensHeader, LensPage, LensSection } from '../../components/lens';
 import { QueryBoundary } from '../../components/query-boundary';
+import { Segmented } from '../../components/segmented';
 import { JobStatusBadge } from '../../components/status-badge';
 import { WriteGate } from '../../components/write-gate';
 import { useApiMutation, useJobs } from '../../hooks';
+import { refineryKeys } from '../../query-keys';
+import { useRefinderyApi } from '../../refindery-client-context';
+
+const route = getRouteApi('/_shell/jobs');
+
+type StatusFilter = NonNullable<JobsSearch['status']> | 'all';
+
+const statusOptions: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  ...JOB_STATUSES.map((status) => ({
+    value: status,
+    label: status.charAt(0).toUpperCase() + status.slice(1),
+  })),
+];
 
 const relTime = (iso?: string | null): string => {
   if (!iso) return '—';
@@ -26,6 +42,7 @@ const relTime = (iso?: string | null): string => {
 };
 
 function RetryButton({ job }: { job: Job }) {
+  const refineryApi = useRefinderyApi();
   const retry = useApiMutation((id: string) => refineryApi.retryJob(id), {
     success: 'Job re-queued',
     invalidate: [refineryKeys.all],
@@ -105,16 +122,31 @@ function JobsTable({ jobs, showRetry }: { jobs: Job[]; showRetry: boolean }) {
 }
 
 export function JobsPage() {
+  const { status } = route.useSearch();
+  const navigate = route.useNavigate();
   const { data, isLoading, isError, error } = useJobs({ limit: 500 });
   const jobs = data ?? [];
   const dead = jobs.filter((j) => j.status === 'dead');
   const active = jobs.filter((j) => j.status !== 'dead');
+  const filtered = status ? jobs.filter((j) => j.status === status) : jobs;
 
   return (
     <LensPage>
       <LensHeader
         title="Jobs / Pipeline"
         subtitle="Background work, grouped by state. Dead-letter jobs are pinned on top; retry re-queues them."
+        actions={
+          <Segmented<StatusFilter>
+            value={status ?? 'all'}
+            onChange={(next) =>
+              navigate({
+                search: { status: next === 'all' ? undefined : next },
+                replace: true,
+              })
+            }
+            options={statusOptions}
+          />
+        }
       />
       <QueryBoundary
         isLoading={isLoading}
@@ -123,14 +155,24 @@ export function JobsPage() {
         isEmpty={jobs.length === 0}
         emptyLabel="No jobs in the queue."
       >
-        {dead.length > 0 ? (
-          <LensSection title={`Dead letter · ${dead.length}`}>
-            <JobsTable jobs={dead} showRetry />
+        {status ? (
+          <LensSection
+            title={`${status.charAt(0).toUpperCase() + status.slice(1)} · ${filtered.length}`}
+          >
+            <JobsTable jobs={filtered} showRetry={status === 'dead'} />
           </LensSection>
-        ) : null}
-        <LensSection title={`Active & recent · ${active.length}`}>
-          <JobsTable jobs={active} showRetry={false} />
-        </LensSection>
+        ) : (
+          <>
+            {dead.length > 0 ? (
+              <LensSection title={`Dead letter · ${dead.length}`}>
+                <JobsTable jobs={dead} showRetry />
+              </LensSection>
+            ) : null}
+            <LensSection title={`Active & recent · ${active.length}`}>
+              <JobsTable jobs={active} showRetry={false} />
+            </LensSection>
+          </>
+        )}
       </QueryBoundary>
     </LensPage>
   );

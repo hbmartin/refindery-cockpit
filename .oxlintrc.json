@@ -7,7 +7,7 @@
     "eslint-plugin-simple-import-sort",
     "eslint-plugin-sonarjs"
   ],
-  "ignorePatterns": [".github/codeql/**", "**/*.testproj/**"],
+  "ignorePatterns": [".github/codeql/**", "**/*.testproj/**", "**/*.gen.ts"],
   "categories": {
     "correctness": "error"
   },
