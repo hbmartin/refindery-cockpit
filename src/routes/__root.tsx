@@ -31,8 +31,12 @@ import appCss from '@/platform/styles/app.css?url';
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   loader: observedLoader('__root__', async () => {
-    // Setup language and theme in SSR to prevent hydratation errors
-    if (import.meta.env.SSR) {
+    // Setup language and theme in SSR to prevent hydratation errors. Only in the
+    // dev SSR server: the production build is a static SPA (served by refindery
+    // at /admin) whose shell is prerendered with no server, so calling this
+    // server function during prerender would hang serialization. Client-side
+    // language detection handles the runtime case.
+    if (import.meta.env.SSR && import.meta.env.DEV) {
       const { language } = await initSsrApp();
       await i18n.changeLanguage(language);
     }
@@ -71,20 +75,27 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         rel: 'stylesheet',
         href: appCss,
       },
+      // Static assets from `public/` are served under the Vite base (`/admin/`
+      // in production), so favicon/manifest hrefs must carry that prefix or
+      // they 404 when the app is mounted at refindery's `/admin`.
       {
         rel: 'icon',
         type: 'image/png',
-        href: '/favicon-96x96.png',
+        href: `${import.meta.env.BASE_URL}favicon-96x96.png`,
         sizes: '96x96',
       },
-      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-      { rel: 'shortcut icon', href: '/favicon.ico' },
+      {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: `${import.meta.env.BASE_URL}favicon.svg`,
+      },
+      { rel: 'shortcut icon', href: `${import.meta.env.BASE_URL}favicon.ico` },
       {
         rel: 'apple-touch-icon',
         sizes: '180x180',
-        href: '/apple-touch-icon.png',
+        href: `${import.meta.env.BASE_URL}apple-touch-icon.png`,
       },
-      { rel: 'manifest', href: '/site.webmanifest' },
+      { rel: 'manifest', href: `${import.meta.env.BASE_URL}site.webmanifest` },
     ],
   }),
 });
