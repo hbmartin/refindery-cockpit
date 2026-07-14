@@ -204,16 +204,26 @@ const csrfMiddleware = createCsrfMiddleware({
   secFetchSite: 'same-origin',
 });
 
+// The production build is a static SPA served by refindery with no Node
+// runtime, so this request/function middleware only ever runs on the dev SSR
+// server. Running it during the production SPA prerender hangs serialization
+// (telemetry spans, the CSP-nonce response TransformStream, and server-fn
+// guards all assume a live request/response), so it is gated to dev. The static
+// bundle's runtime hardening (headers/CSP) is refindery's responsibility.
 export const startInstance = createStart(() => ({
-  requestMiddleware: [
-    sentryGlobalRequestMiddleware,
-    telemetryRequestMiddleware,
-    securityHeadersMiddleware,
-    browserMutationGuardMiddleware,
-    serverFnBodyLimitMiddleware,
-    csrfMiddleware,
-  ],
-  functionMiddleware: [sentryGlobalFunctionMiddleware],
+  requestMiddleware: import.meta.env.DEV
+    ? [
+        sentryGlobalRequestMiddleware,
+        telemetryRequestMiddleware,
+        securityHeadersMiddleware,
+        browserMutationGuardMiddleware,
+        serverFnBodyLimitMiddleware,
+        csrfMiddleware,
+      ]
+    : [],
+  functionMiddleware: import.meta.env.DEV
+    ? [sentryGlobalFunctionMiddleware]
+    : [],
 }));
 
 export {

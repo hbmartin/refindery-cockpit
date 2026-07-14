@@ -45,11 +45,18 @@ const startTelemetryInitialization = (
   });
 };
 
-if (import.meta.env.SSR && shouldAutoInitTelemetry) {
-  startTelemetryInitialization(
-    initTelemetryServerOnly(),
-    'telemetry.server_init_failed'
-  );
+if (import.meta.env.SSR) {
+  // Server telemetry only makes sense with a running Node server, i.e. the dev
+  // SSR server. The production build is a static SPA served by refindery with
+  // no Node runtime, and the SPA prerender step runs this module server-side:
+  // initializing the OTLP exporters there crashes the build when no collector
+  // is reachable. Gate server init to dev so prerender stays clean.
+  if (shouldAutoInitTelemetry && import.meta.env.DEV) {
+    startTelemetryInitialization(
+      initTelemetryServerOnly(),
+      'telemetry.server_init_failed'
+    );
+  }
 } else if (shouldAutoInitTelemetry) {
   // Start client instrumentation at module evaluation so document/fetch
   // telemetry is active before router subscriptions begin handling navigation.
@@ -88,6 +95,9 @@ export function getRouter() {
 
   const router = createRouter({
     context: routerContext,
+    // Mounted under refindery's `/admin` in production; keep this in sync with
+    // the Vite `base` so client navigation and generated links stay prefixed.
+    basepath: '/admin',
     defaultPreload: 'intent',
     // Since we're using React Query, we don't want loader calls to ever be stale
     // This will ensure that the loader is always called when the route is preloaded or visited

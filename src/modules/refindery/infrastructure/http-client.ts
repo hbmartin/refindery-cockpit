@@ -1,7 +1,7 @@
 /**
  * Thin fetch wrapper for the refindery HTTP API. Injects the bearer token,
- * targets same-origin relative paths (dev proxy / prod `/ui` static mount handle
- * routing), and normalizes failures into `ApiError` via `parseApiError`.
+ * targets same-origin relative paths (dev proxy / prod `/admin` static mount
+ * handle routing), and normalizes failures into `ApiError` via `parseApiError`.
  */
 import { tokenStore } from './token-store';
 import { type ApiError, networkError, parseApiError } from '../domain/errors';

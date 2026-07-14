@@ -1,0 +1,90 @@
+name: 📦 Release static bundle
+
+# Builds the cockpit as a static SPA and attaches it to the GitHub Release as a
+# tarball. refindery's publish workflow downloads a pinned version of this asset
+# and unpacks it into the wheel so `pip install refindery` ships the admin UI.
+# See docs and refindery/COCKPIT_UI_VERSION for the version-pinning contract.
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to (re)build and attach the bundle to
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-dist-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    name: Build and upload cockpit-dist
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # The static SPA is served same-origin from refindery, but the build's
+      # server-config validation still runs; these are throwaway build-time
+      # values, never shipped in the static bundle.
+      VITE_BASE_URL: http://localhost:3000
+      VITE_S3_BUCKET_PUBLIC_URL: 'http://localhost:9000/default'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
+        with:
+          node-version: 24
+
+      - name: Generate build-time server config
+        shell: bash
+        run: |
+          database_url="$(
+            printf '%s%s:%s@%s/%s' \
+              'postgres://' 'startui' 'startui' 'localhost:5432' 'startui'
+          )"
+          {
+            printf '%s=%s\n' 'AUTH_SECRET' "$(openssl rand -base64 32)"
+            printf '%s=%s\n' 'DATABASE_URL' "${database_url}"
+            printf '%s=%s\n' 'RESEND_API_KEY' "re_$(openssl rand -hex 16)"
+            printf '%s=%s\n' 'EMAIL_FROM' 'Start UI <noreply@example.com>'
+            printf '%s=%s\n' 'EMAIL_DELIVERY_DISABLED' 'true'
+            printf '%s=%s\n' 'S3_ACCESS_KEY_ID' "startui-$(openssl rand -hex 8)"
+            printf '%s=%s\n' 'S3_SECRET_ACCESS_KEY' "$(openssl rand -hex 24)"
+            printf '%s=%s\n' 'S3_BUCKET_NAME' 'default'
+            printf '%s=%s\n' 'S3_HOST' 'localhost:9000'
+            printf '%s=%s\n' 'S3_SECURE' 'false'
+            printf '%s=%s\n' 'S3_FORCE_PATH_STYLE' 'true'
+            printf '%s=%s\n' 'OTEL_COLLECTOR_URL' 'http://localhost:4318'
+          } >> "$GITHUB_ENV"
+
+      - name: Build static SPA
+        run: pnpm build
+
+      - name: Verify SPA shell was produced
+        shell: bash
+        run: test -f .output/public/index.html
+
+      - name: Package bundle
+        id: package
+        shell: bash
+        run: |
+          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          archive="cockpit-dist-${tag}.tgz"
+          tar -czf "${archive}" -C .output/public .
+          echo "archive=${archive}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload bundle to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ github.event.release.tag_name || inputs.tag }}"
+          gh release upload "${tag}" "${{ steps.package.outputs.archive }}" \
+            --clobber --repo "${{ github.repository }}"

@@ -8,8 +8,6 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 
-import { CSP_NONCE_PLACEHOLDER } from './src/platform/http/csp-nonce';
-
 function srcJsonImportPlugin(): Plugin {
   return {
     name: 'start-ui:src-json-import',
@@ -87,7 +85,7 @@ export default defineConfig(({ mode }) => {
       : [];
 
   // The cockpit talks to a running refindery over its HTTP API. In dev we proxy
-  // the refindery surfaces (same-origin in prod when served from refindery /ui)
+  // the refindery surfaces (same-origin in prod when served from refindery /admin)
   // so the browser can use relative paths and share the bearer token with no CORS.
   const refineryTarget = env.VITE_REFINDERY_TARGET ?? 'http://127.0.0.1:8000';
   const refineryProxyPaths = [
@@ -106,11 +104,11 @@ export default defineConfig(({ mode }) => {
   );
 
   return {
+    // Served from refindery's `/admin` mount in production (static SPA), so
+    // every emitted asset URL and the router are prefixed with this base.
+    base: '/admin/',
     build: {
       target: 'baseline-widely-available',
-    },
-    html: {
-      cspNonce: CSP_NONCE_PLACEHOLDER,
     },
     server: {
       port: env.VITE_PORT ? Number(env.VITE_PORT) : 3000,
@@ -123,7 +121,19 @@ export default defineConfig(({ mode }) => {
     plugins: [
       ...(isTestRuntime ? [] : devtools()),
       srcJsonImportPlugin(),
-      tanstackStart(),
+      // SPA mode: build a static client bundle (prerendered shell + assets)
+      // instead of a Node SSR server, so refindery can serve it from `/admin`
+      // via StaticFiles. All data still flows client-side to the refindery API.
+      // `maskPath` renders the shell at the based root (the router basepath is
+      // `/admin`); crawling is off because every real route is client-only and
+      // data-dependent, so there is nothing to statically crawl.
+      tanstackStart({
+        spa: {
+          enabled: true,
+          maskPath: '/admin/',
+          prerender: { crawlLinks: false, outputPath: '/index.html' },
+        },
+      }),
       nitro(),
       // react's vite plugin must come after start's vite plugin
       viteReact(),
