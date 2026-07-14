@@ -196,7 +196,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "catching-jit-tests-vitest": "^0.4.0",
     "cross-env": "10.1.0",
-    "dependency-cruiser": "^17.4.3",
+    "dependency-cruiser": "^18.1.0",
     "dotenv-cli": "11.0.0",
     "eslint": "^10.5.0",
     "eslint-plugin-playwright": "^2.10.5",
