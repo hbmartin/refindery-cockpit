@@ -12,6 +12,7 @@ import { observeHttpRequest } from '@/composition/telemetry/request-observabilit
 import type { Logger } from '@/modules/kernel';
 import { isProdRuntimeEnvironment } from '@/modules/kernel/backend';
 import { envClient } from '@/platform/env/client';
+import { isDevEnvironment } from '@/platform/env/config';
 import {
   appendBrowserMutationVaryHeader,
   shouldProtectBrowserMutation,
@@ -211,7 +212,7 @@ const csrfMiddleware = createCsrfMiddleware({
 // guards all assume a live request/response), so it is gated to dev. The static
 // bundle's runtime hardening (headers/CSP) is refindery's responsibility.
 export const startInstance = createStart(() => ({
-  requestMiddleware: import.meta.env.DEV
+  requestMiddleware: isDevEnvironment()
     ? [
         sentryGlobalRequestMiddleware,
         telemetryRequestMiddleware,
@@ -221,7 +222,7 @@ export const startInstance = createStart(() => ({
         csrfMiddleware,
       ]
     : [],
-  functionMiddleware: import.meta.env.DEV
+  functionMiddleware: isDevEnvironment()
     ? [sentryGlobalFunctionMiddleware]
     : [],
 }));

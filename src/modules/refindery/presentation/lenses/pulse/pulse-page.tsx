@@ -5,7 +5,7 @@ import {
   histogramQuantile,
   type PromMetrics,
   sumByLabel,
-} from '../../../client';
+} from '../../../domain/prometheus';
 import { TimeSeriesChart } from '../../components/charts';
 import { LensHeader, LensPage, LensSection } from '../../components/lens';
 import { QueryBoundary } from '../../components/query-boundary';

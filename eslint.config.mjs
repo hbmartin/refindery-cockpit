@@ -3,7 +3,6 @@ import { defineConfig } from 'eslint/config';
 import playwright from 'eslint-plugin-playwright';
 import reactHooks from 'eslint-plugin-react-hooks';
 import security from 'eslint-plugin-security';
-import sonarjs from 'eslint-plugin-sonarjs';
 import tseslint from 'typescript-eslint';
 
 const tsFiles = ['**/*.{ts,tsx,mts,cts}'];
@@ -51,6 +50,7 @@ export default defineConfig([
       'dist/**',
       'node_modules/**',
       'playwright-report/**',
+      'src/modules/refindery/domain/api.gen.ts',
       'src/platform/components/icons/generated/**',
       'src/routeTree.gen.ts',
       'test-results/**',
@@ -110,11 +110,9 @@ export default defineConfig([
     ignores: nonProductionFiles,
     plugins: {
       security,
-      sonarjs,
     },
     rules: {
       ...warnRules(security.configs.recommended.rules),
-      ...warnRules(sonarjs.configs.recommended.rules),
     },
   },
   {

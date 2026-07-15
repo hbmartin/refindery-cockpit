@@ -444,7 +444,6 @@ rules:
         - tests/**
         - '*.config.ts'
         - '*.config.mjs'
-        - '*.cosmos.ts'
         - 'vite.*.ts'
         - vite.config.*
         - drizzle.config.*

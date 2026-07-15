@@ -23,7 +23,11 @@ export function WriteGate({ children }: { children: ReactNode }) {
       <Tooltip>
         <TooltipTrigger
           render={
-            <span className="inline-flex cursor-not-allowed opacity-50 [&_button]:pointer-events-none" />
+            <fieldset
+              disabled
+              aria-disabled="true"
+              className="inline-flex min-w-0 cursor-not-allowed border-0 p-0 opacity-50 [&_[role=button]]:pointer-events-none [&_a]:pointer-events-none"
+            />
           }
         >
           {children}

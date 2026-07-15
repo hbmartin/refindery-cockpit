@@ -8,6 +8,17 @@ import { type ApiError, networkError, parseApiError } from '../domain/errors';
 
 type QueryValue = string | number | boolean | undefined | null;
 
+export type RefineryHttpClient = {
+  get<T>(path: string, query?: Record<string, QueryValue>): Promise<T>;
+  post<T>(
+    path: string,
+    body?: unknown,
+    query?: Record<string, QueryValue>
+  ): Promise<T>;
+  delete<T>(path: string, query?: Record<string, QueryValue>): Promise<T>;
+  metricsText(): Promise<string>;
+};
+
 const buildQuery = (params?: Record<string, QueryValue>): string => {
   if (!params) return '';
   const search = new URLSearchParams();
@@ -83,7 +94,7 @@ async function request<T>(
   return (await readBody(response)) as T;
 }
 
-export const httpClient = {
+export const httpClient: RefineryHttpClient = {
   get: <T>(path: string, query?: Record<string, QueryValue>) =>
     request<T>('GET', path, { query }),
   post: <T>(path: string, body?: unknown, query?: Record<string, QueryValue>) =>

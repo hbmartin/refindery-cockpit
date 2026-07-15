@@ -26,7 +26,12 @@ export function PageDetail({ pageId }: { pageId: string }) {
         title={page.data?.title || 'Page'}
         subtitle={page.data?.canonical_url}
         actions={
-          <Button size="sm" variant="ghost" render={<Link to="/pages" />}>
+          <Button
+            size="sm"
+            variant="ghost"
+            render={<Link to="/pages" />}
+            nativeButton={false}
+          >
             <ArrowLeftIcon /> Library
           </Button>
         }

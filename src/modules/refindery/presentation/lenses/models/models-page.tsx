@@ -6,16 +6,23 @@ import { toast } from 'sonner';
 import { Badge } from '@/platform/components/ui/badge';
 import { Button } from '@/platform/components/ui/button';
 
-import { errorMessage, refineryApi, refineryKeys } from '../../../client';
 import type { BackfillEstimate, ModelInfo } from '../../../index';
 import { LensHeader, LensPage } from '../../components/lens';
 import { QueryBoundary } from '../../components/query-boundary';
 import { ModelStateBadge } from '../../components/status-badge';
 import { TypedConfirmDialog } from '../../components/typed-confirm';
 import { WriteGate } from '../../components/write-gate';
-import { useApiMutation, useBackfillProgress, useModels } from '../../hooks';
+import {
+  errorMessage,
+  useApiMutation,
+  useBackfillProgress,
+  useModels,
+} from '../../hooks';
+import { refineryKeys } from '../../query-keys';
+import { useRefinderyApi } from '../../refindery-client-context';
 
 function BackfillControl({ model }: { model: ModelInfo }) {
+  const refineryApi = useRefinderyApi();
   const [estimate, setEstimate] = useState<BackfillEstimate | null>(null);
   const [polling, setPolling] = useState(false);
   const progress = useBackfillProgress(model.model_id, polling);
@@ -67,9 +74,14 @@ function BackfillControl({ model }: { model: ModelInfo }) {
       </div>
       {estimate ? (
         <span className="text-2xs text-muted-foreground">
-          {estimate.n_chunks.toLocaleString()} chunks · $
-          {estimate.est_cost_usd.toFixed(2)} · ~
-          {Math.round(estimate.est_duration_s)}s
+          {estimate.n_chunks.toLocaleString()} chunks ·{' '}
+          {estimate.est_cost_usd == null
+            ? 'cost unavailable'
+            : `$${estimate.est_cost_usd.toFixed(2)}`}{' '}
+          ·{' '}
+          {estimate.est_duration_s == null
+            ? 'duration unavailable'
+            : `~${Math.round(estimate.est_duration_s)}s`}
         </span>
       ) : null}
       {progress.data ? (
@@ -87,6 +99,7 @@ function BackfillControl({ model }: { model: ModelInfo }) {
 }
 
 function ModelRow({ model }: { model: ModelInfo }) {
+  const refineryApi = useRefinderyApi();
   const [retireOpen, setRetireOpen] = useState(false);
   const activate = useApiMutation(
     () => refineryApi.activateModel(model.model_id),

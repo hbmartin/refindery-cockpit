@@ -8,6 +8,7 @@ import {
 
 import { createClientQueryClient } from '@/composition/client-query';
 import { telemetryProxy } from '@/composition/telemetry';
+import { isDevEnvironment } from '@/platform/env/config';
 import { createNoOpFlags } from '@/platform/flags';
 import { readCspNonceFromMeta } from '@/platform/http/csp-nonce';
 import type { RouterContext } from '@/platform/router/context';
@@ -51,7 +52,7 @@ if (import.meta.env.SSR) {
   // no Node runtime, and the SPA prerender step runs this module server-side:
   // initializing the OTLP exporters there crashes the build when no collector
   // is reachable. Gate server init to dev so prerender stays clean.
-  if (shouldAutoInitTelemetry && import.meta.env.DEV) {
+  if (shouldAutoInitTelemetry && isDevEnvironment()) {
     startTelemetryInitialization(
       initTelemetryServerOnly(),
       'telemetry.server_init_failed'

@@ -23,6 +23,11 @@ vi.mock('@/modules/kernel/infrastructure/logger/telemetry', () => ({
   createTelemetryLogger: () => mockLogger,
 }));
 
+vi.mock('@/platform/env/config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/env/config')>()),
+  isDevEnvironment: () => true,
+}));
+
 describe('TanStack Start instance', () => {
   beforeEach(() => {
     vi.clearAllMocks();

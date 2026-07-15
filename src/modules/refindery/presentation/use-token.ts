@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from 'react';
 
-import { tokenStore } from '../infrastructure/token-store';
+import { useRefinderyTokenStore } from './refindery-client-context';
 
 /** Reactively read the stored bearer token (null when unset). SSR-safe. */
 export function useToken(): string | null {
+  const tokenStore = useRefinderyTokenStore();
   return useSyncExternalStore(
     tokenStore.subscribe,
     tokenStore.getSnapshot,
@@ -11,8 +12,8 @@ export function useToken(): string | null {
   );
 }
 
-export function setToken(token: string | null): void {
-  tokenStore.set(token);
+export function useSetToken(): (token: string | null) => void {
+  return useRefinderyTokenStore().set;
 }
 
 export function useHasToken(): boolean {
